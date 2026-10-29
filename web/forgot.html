@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Reset your password · Verticlip</title>
+<link rel="icon" href="/assets/verticlip-logo.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&family=Poppins:wght@700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/static/app.css" />
+<script>try{var t=localStorage.getItem("vc-theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+<div class="auth">
+  <div class="form-side">
+    <form id="form" novalidate>
+      <a class="brand" href="/" style="padding:0" id="brandLink"></a>
+      <h1>Forgot your password?</h1>
+      <p class="muted" style="margin-bottom:24px">Enter your email and we'll send you a link to choose a new one.</p>
+      <div class="field"><label for="email">Email</label><input class="input" id="email" type="email" autocomplete="email" required /></div>
+      <button class="btn lg" id="submit">Send reset link</button>
+      <p class="form-err" id="err" role="alert"></p>
+      <p class="alt"><a href="/login">Back to log in</a></p>
+    </form>
+  </div>
+  <div class="art" aria-hidden="true">
+    <div class="stack-art">
+      <div class="mini"><div class="bg"></div><span class="badge-score mid">▲ 78</span><div class="cap">WAIT FOR <em>IT</em></div></div>
+      <div class="mini"><div class="bg"></div><span class="badge-score hi">▲ 94</span><div class="cap">NOBODY <em>TELLS</em> YOU</div></div>
+      <div class="mini"><div class="bg"></div><span class="badge-score hi">▲ 88</span><div class="cap">THIS <em>CHANGED</em> IT</div></div>
+    </div>
+  </div>
+</div>
+<script src="/static/app.js"></script>
+<script>
+  const { $, api, ICON } = VC;
+  $("#brandLink").innerHTML = `${ICON.logo}<span>Verticlip</span>`;
+  $("#form").onsubmit = async (e) => {
+    e.preventDefault(); $("#err").textContent = "";
+    const btn = $("#submit"); btn.disabled = true;
+    try {
+      await api("/api/auth/forgot", { method: "POST", body: { email: $("#email").value } });
+      $("#form").innerHTML = `<a class="brand" href="/" style="padding:0">${ICON.logo}<span>Verticlip</span></a><h1>Check your email</h1><p class="muted" style="margin-top:10px">If that address has an account, a reset link is on its way. It works for one hour. Look in your spam folder if you don't see it.</p><p class="alt"><a href="/login">Back to log in</a></p>`;
+    } catch (err) { $("#err").textContent = err.message; btn.disabled = false; }
+  };
+</script>
+</body>
+</html>

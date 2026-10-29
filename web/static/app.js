@@ -6,7 +6,7 @@
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
   const ICON = {
-    logo: `<svg viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="vcg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d4ff3a"/><stop offset="1" stop-color="#8b7cff"/></linearGradient></defs><rect x="9" y="2" width="14" height="28" rx="5" fill="none" stroke="url(#vcg)" stroke-width="2.8"/><path d="M14 11l6 5-6 5z" fill="url(#vcg)"/></svg>`,
+    logo: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="6.5" y="2.5" width="11" height="19" rx="3" stroke="currentColor" stroke-width="2"/><path d="M10.5 8.5v7l5-3.5z" fill="currentColor"/></svg>`,
     plus: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>`,
     grid: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/></svg>`,
     brush: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 14.5l7.8-9.6a2 2 0 0 1 3 2.6l-9.4 8"/><path d="M8 14c-2.5 0-4 1.7-4 4 0 1-.6 2-2 2 2 1.5 7 1.5 8.4-1.4.8-1.6-.4-4.6-2.4-4.6z"/></svg>`,
@@ -105,7 +105,7 @@
         <a class="btn new" href="/dashboard#create">${ICON.plus} New project</a>
         <nav class="nav" aria-label="Main">${NAV.map(([id, href, label, icon]) =>
           `<a href="${href}"${id === page ? ' aria-current="page"' : ""}>${icon}<span>${label}</span></a>`).join("")}</nav>
-        <div class="side-foot"><div class="usage" id="usageBox"><div class="meter"><div style="width:0"></div></div></div><div class="who" id="whoBox"></div></div>
+        <div class="side-foot"><div class="usage" id="usageBox"><div class="meter"><div style="width:0"></div></div></div><div class="theme" id="themeBox" role="group" aria-label="Appearance"><button type="button" data-t="system">System</button><button type="button" data-t="light">Light</button><button type="button" data-t="dark">Dark</button></div><div class="who" id="whoBox"></div></div>
       </aside>
       <div class="col">
         <div class="mobile-bar"><a class="brand" href="/dashboard">${ICON.logo}<span>Verticlip</span></a><button class="btn quiet sm" id="menuBtn" aria-label="Menu">${ICON.menu}</button></div>
@@ -115,7 +115,35 @@
     $(".col", shell).append(main);
     $("#menuBtn").onclick = (e) => { e.stopPropagation(); $("#side").classList.toggle("open"); };
     document.addEventListener("click", (e) => { if (!e.target.closest("#side")) $("#side").classList.remove("open"); });
-    loadMe().then(drawUsage).catch(() => { });
+    initTheme();
+    loadMe().then((me) => { drawUsage(me); verifyBanner(me); }).catch(() => { });
+  }
+
+  function initTheme() {
+    const root = document.documentElement;
+    const paint = (m) => $$("#themeBox button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.t === m));
+    const saved = (() => { try { return localStorage.getItem("vc-theme"); } catch { return null; } })();
+    paint(saved === "light" || saved === "dark" ? saved : "system");
+    $$("#themeBox button").forEach((b) => b.onclick = () => {
+      const m = b.dataset.t;
+      if (m === "system") delete root.dataset.theme; else root.dataset.theme = m;
+      try { m === "system" ? localStorage.removeItem("vc-theme") : localStorage.setItem("vc-theme", m); } catch { }
+      paint(m);
+    });
+  }
+
+  function verifyBanner(me) {
+    if (!me.user.verification_required || $("#verifyBanner")) return;
+    const b = document.createElement("div");
+    b.className = "banner"; b.id = "verifyBanner"; b.setAttribute("role", "status");
+    b.innerHTML = `<span><b>Confirm your email to start making clips.</b> We sent a link to ${esc(me.user.email)}.</span><button class="btn sm" id="resendBtn">Send a new link</button>`;
+    $("main").prepend(b);
+    $("#resendBtn").onclick = async () => {
+      const btn = $("#resendBtn"); btn.disabled = true;
+      try { await api("/api/auth/resend", { method: "POST" }); toast("Sent. Check your inbox and spam folder."); }
+      catch (e) { toast(e.message, true); }
+      btn.disabled = false;
+    };
   }
 
   window.VC = { $, $$, esc, sleep, api, toast, fmtDur, timeAgo, tier, safeNext, ICON, loadMe, drawUsage };

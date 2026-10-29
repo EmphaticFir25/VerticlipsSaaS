@@ -7,8 +7,9 @@
 <link rel="icon" href="/assets/verticlip-logo.svg" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Hanken+Grotesk:wght@400;500;600;700&family=Poppins:wght@700;800&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&family=Poppins:wght@700;800&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="/static/app.css" />
+<script>try{var t=localStorage.getItem("vc-theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
 <div class="auth">
@@ -19,6 +20,7 @@
       <p class="muted" style="margin-bottom:24px">Log in to your projects.</p>
       <div class="field"><label for="email">Email</label><input class="input" id="email" type="email" autocomplete="email" required /></div>
       <div class="field"><label for="password">Password</label><input class="input" id="password" type="password" autocomplete="current-password" required /></div>
+      <p class="alt" style="text-align:right;margin:12px 0 0"><a href="/forgot">Forgot your password?</a></p>
       <button class="btn lg" id="submit">Log in</button>
       <p class="form-err" id="err" role="alert"></p>
       <p class="alt">New to Verticlip? <a href="/signup" id="altLink">Create an account</a></p>
