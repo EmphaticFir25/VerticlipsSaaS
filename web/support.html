@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Support · Verticlip</title>
+<meta name="description" content="Help with Verticlip: common problems and how to contact us." />
+<link rel="icon" href="/assets/verticlip-logo.svg" />
+<link rel="preload" href="/static/fonts/SchibstedGrotesk-latin.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="stylesheet" href="/static/fonts/fonts.css" />
+<link rel="stylesheet" href="/static/app.css" />
+<style>
+  .doc { max-width: 760px; margin: 0 auto; padding: 40px 22px 90px; }
+  .doc .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
+  .doc h1 { font-size: 38px; margin-bottom: 6px; }
+  .doc h2 { font-size: 20px; margin: 34px 0 10px; }
+  .doc p, .doc li { color: var(--muted); }
+  .doc p + p { margin-top: 10px; }
+  .doc ul { padding-left: 20px; display: grid; gap: 6px; }
+  .doc a { color: var(--volt); text-decoration: underline; }
+  .doc table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 10px; }
+  .doc th, .doc td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); color: var(--muted); }
+  .doc th { color: var(--text); font-weight: 600; }
+  .doc form .field { margin-top: 14px; }
+  .doc .check { display: flex; gap: 10px; align-items: flex-start; margin-top: 14px; color: var(--muted); }
+  .doc .note-box { padding: 14px 16px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); margin-top: 14px; }
+</style>
+<script>try{var t=localStorage.getItem("vc-theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+<div class="doc">
+  <div class="top"><a class="brand" href="/" style="padding:0" id="b"></a><nav class="muted" style="display:flex;gap:16px;font-weight:600;font-size:14px;flex-wrap:wrap"><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/copyright">Copyright</a><a href="/support">Support</a></nav></div>
+  <h1>Support</h1>
+  <p class="faint">Last updated: October 29, 2026</p>
+
+  <p>Need help? Email <a href="mailto:{{CONTACT_EMAIL}}">{{CONTACT_EMAIL}}</a>. Include the project link if your question is about one. We aim to reply within two business days.</p>
+  <h2>Common problems</h2>
+  <h3 style="margin-top:18px;font-size:16px">"This link can't be used" or the download failed</h3>
+  <p>Verticlip can only fetch public videos. Private, unlisted-with-restrictions, age-restricted, members-only and live streams can't be downloaded. Try another link, or download the file yourself and use <b>Upload file</b>.</p>
+  <h3 style="margin-top:18px;font-size:16px">"Not enough speech was found"</h3>
+  <p>The video needs clear spoken words. Music-only, silent or very short videos can't be clipped.</p>
+  <h3 style="margin-top:18px;font-size:16px">"No clip-worthy moments were found"</h3>
+  <p>Try a longer video, or a different clip length. The AI looks for self-contained moments with a strong opening and a payoff.</p>
+  <h3 style="margin-top:18px;font-size:16px">The video is too long or the file is too large</h3>
+  <p>There is a limit on the length of a source video and on upload size. Trim it and try again.</p>
+  <h3 style="margin-top:18px;font-size:16px">I didn't get the confirmation or reset email</h3>
+  <p>Check spam. You can ask for a new confirmation link from your dashboard, or request a new reset link on the <a href="/forgot">forgot password</a> page. Links expire, so use the newest one.</p>
+  <h3 style="margin-top:18px;font-size:16px">My clips are gone</h3>
+  <p>Projects are deleted {{PROJECT_DAYS}} days after you create them, and original videos after {{SOURCE_DAYS}} days. Download the clips you want to keep.</p>
+  <h3 style="margin-top:18px;font-size:16px">The upload to YouTube or TikTok failed</h3>
+  <p>Reconnect the account in Social accounts and try again. TikTok uploads go to your TikTok inbox for you to finish posting.</p>
+  <h2>Report content</h2>
+  <p>To report copyright infringement or abusive content, use the form on the <a href="/copyright">copyright page</a>.</p>
+  <h2>Your data</h2>
+  <p>You can download your data or delete your account from Settings at any time.</p>
+
+</div>
+<script src="/static/app.js"></script>
+<script>VC.$("#b").innerHTML = `${VC.ICON.logo}<span>Verticlip</span>`;</script>
+</body>
+</html>

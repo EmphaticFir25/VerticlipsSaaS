@@ -41,6 +41,7 @@ os.environ.update({
     "STRIPE_PRICE_STUDIO": "price_studio",
     "WORKERS": "1",
     "HIBP_CHECK": "false",
+    "API_WRITES_PER_MINUTE": "100000",
     "SIGNUPS_PER_HOUR": "10000",
 })
 

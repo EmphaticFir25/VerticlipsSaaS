@@ -118,14 +118,31 @@ def _tokens() -> dict:
             "PUBLIC_BASE": config.PUBLIC_BASE}
 
 
-def page(name: str, status: int = 200) -> Response:
+# Pages that should not appear in search results: accounts, the app itself, and one-time links.
+NOINDEX = {"login.html", "signup.html", "forgot.html", "reset.html", "verify.html", "project.html", "404.html",
+           "dashboard.html", "brand.html", "accounts.html", "billing.html", "settings.html"}
+
+
+def page(name: str, status: int = 200, extra: Optional[dict] = None, raw: Optional[dict] = None) -> Response:
     text = (config.WEB_DIR / name).read_text(encoding="utf-8")
-    for key, value in _tokens().items():
+    for key, value in {**_tokens(), **(extra or {})}.items():
         text = text.replace("{{" + key + "}}", html.escape(value))
-    return Response(text, status_code=status, media_type="text/html", headers={"Cache-Control": "no-cache"})
+    for key, value in (raw or {}).items():
+        text = text.replace("{{" + key + "}}", value)
+    headers = {"Cache-Control": "no-cache"}
+    if name in NOINDEX:
+        headers["X-Robots-Tag"] = "noindex, nofollow"
+    return Response(text, status_code=status, media_type="text/html", headers=headers)
 
 
 # ---------- middleware ----------
+
+CSP = ("default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; "
+       "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; "
+       "connect-src 'self' https://challenges.cloudflare.com; font-src 'self'; object-src 'none'; base-uri 'self'; "
+       "form-action 'self'; frame-ancestors 'none'")
+api_throttle = auth.Throttle(limit=config.API_WRITES_PER_MINUTE, window=60)
+
 
 class Guard(BaseHTTPMiddleware):
     """Security headers on every response; a custom header on every state-changing API call so
@@ -136,9 +153,17 @@ class Guard(BaseHTTPMiddleware):
         if (request.method in ("POST", "PUT", "PATCH", "DELETE") and path.startswith("/api/")
                 and path != "/api/billing/webhook" and request.headers.get(CSRF_HEADER) != "1"):
             return JSONResponse({"detail": "Missing request header."}, status_code=403)
+        if request.method in ("POST", "PUT", "PATCH", "DELETE") and path.startswith("/api/") and path != "/api/billing/webhook":
+            ip = f"w|{client_ip(request)}"
+            if api_throttle.blocked(ip):
+                return JSONResponse({"detail": "Too many requests. Slow down and try again in a minute."}, status_code=429)
+            api_throttle.fail(ip)
         resp = await call_next(request)
         if path.startswith("/api/"):
             resp.headers.setdefault("Cache-Control", "no-store")
+        resp.headers.setdefault("Content-Security-Policy", CSP)
+        resp.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()")
+        resp.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
         resp.headers.setdefault("X-Content-Type-Options", "nosniff")
         resp.headers.setdefault("X-Frame-Options", "DENY")
         resp.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
@@ -163,8 +188,49 @@ async def server_error(request: Request, exc: Exception):
 
 # ---------- pages ----------
 
+LANDING = {   # one real, indexable address per tab
+    "/": ("Verticlip: turn one long video into a week of shorts",
+          "Paste a long video. Verticlip finds the best moments, scores them, adds animated captions and sends them to YouTube Shorts and TikTok."),
+    "/how-it-works": ("How Verticlip works: from a link to posted shorts in three steps",
+                      "Add a video, let AI find the moments worth posting, then review ranked, captioned clips and publish them."),
+    "/features": ("Verticlip features: virality scores, animated captions, hook titles and one-click publishing",
+                  "Every clip gets a virality score, animated captions, a hook title and clean cuts, with your brand kit applied."),
+    "/pricing": ("Verticlip pricing: plans billed by minutes of video",
+                 "Start free with 30 minutes a month. Paid plans add more minutes, more clips per video and no watermark."),
+    "/faq": ("Verticlip FAQ: links, minutes and cancelling",
+             "Answers about supported sites, how minutes are counted, and how to cancel."),
+}
+
+
+def _jsonld() -> str:
+    offers = [{"@type": "Offer", "name": p["name"], "price": str(p["price"]), "priceCurrency": "USD"} for p in config.PLANS.values()]
+    data = {"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "Verticlip",
+            "applicationCategory": "MultimediaApplication", "operatingSystem": "Web", "url": config.PUBLIC_BASE,
+            "description": LANDING["/"][1], "offers": offers}
+    return json.dumps(data).replace("</", "<\\/")
+
+
 async def landing(request: Request):
-    return page("index.html")
+    path = request.url.path.rstrip("/") or "/"
+    title, desc = LANDING.get(path, LANDING["/"])
+    return page("index.html", extra={"SEO_TITLE": title, "SEO_DESC": desc, "SEO_PATH": "" if path == "/" else path},
+                raw={"JSONLD": _jsonld()})
+
+
+PUBLIC_PATHS = [*LANDING, "/terms", "/privacy", "/copyright", "/refunds", "/support"]
+
+
+async def robots_txt(request: Request):
+    body = ("User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /files/\nDisallow: /project/\nDisallow: /dashboard\n"
+            "Disallow: /brand\nDisallow: /accounts\nDisallow: /billing\nDisallow: /settings\n"
+            f"Disallow: /login\nDisallow: /signup\nDisallow: /forgot\nDisallow: /reset\nDisallow: /verify\n\nSitemap: {config.PUBLIC_BASE}/sitemap.xml\n")
+    return Response(body, media_type="text/plain")
+
+
+async def sitemap_xml(request: Request):
+    urls = "".join(f"<url><loc>{html.escape(config.PUBLIC_BASE + ('' if p == '/' else p))}</loc></url>" for p in PUBLIC_PATHS)
+    return Response('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+                    + urls + "</urlset>", media_type="application/xml")
 
 
 async def login_page(request: Request):
@@ -180,7 +246,8 @@ async def signup_page(request: Request):
 
 
 async def plain_page(request: Request):
-    return page(request.url.path.strip("/") + ".html")
+    name = request.url.path.strip("/")
+    return page({"report": "copyright"}.get(name, name) + ".html")
 
 
 async def app_page(request: Request):
@@ -198,6 +265,17 @@ async def project_page(request: Request):
 
 async def legal_page(request: Request):
     return page("terms.html" if request.url.path == "/terms" else "privacy.html")
+
+
+async def public_config(request: Request):
+    return JSONResponse({"turnstile_site_key": config.TURNSTILE_SITE_KEY if config.TURNSTILE_SECRET else "",
+                         "min_age": config.MIN_AGE})
+
+
+async def security_txt(request: Request):
+    body = (f"Contact: mailto:{config.SECURITY_EMAIL}\nExpires: {time.strftime('%Y-%m-%dT00:00:00Z', time.gmtime(time.time() + 365 * 86400))}\n"
+            f"Preferred-Languages: en\nCanonical: {config.PUBLIC_BASE}/.well-known/security.txt\n")
+    return Response(body, media_type="text/plain")
 
 
 async def healthz(request: Request):
@@ -222,6 +300,12 @@ async def signup(request: Request):
         raise err(400, f"Use a password of at least {auth.MIN_PASSWORD} characters.")
     if db.get_user_by_email(email):
         raise err(409, "An account with that email already exists. Log in instead.")
+    if config.BLOCK_DISPOSABLE_EMAIL and auth.is_disposable(email):
+        raise err(400, "Use a permanent email address. Temporary inboxes can't be used to sign up.")
+    if not await run_in_threadpool(auth.captcha_ok, str(data.get("captcha", "")), ip):
+        raise err(400, "We couldn't confirm you're human. Reload the page and try again.")
+    if await run_in_threadpool(auth.password_is_breached, password):
+        raise err(400, "That password appears in known data breaches. Choose a different one.")
     if data.get("agree") is not True:
         raise err(400, f"Confirm that you are at least {config.MIN_AGE} years old and accept the Terms and Privacy Policy.")
     pw_hash = await run_in_threadpool(auth.hash_password, password)
@@ -271,6 +355,8 @@ async def submit_report(request: Request):
     ip = f"report|{client_ip(request)}"
     if report_throttle.blocked(ip):
         raise err(429, "Too many reports from this network. Try again later.")
+    if not await run_in_threadpool(auth.captcha_ok, str(data.get("captcha", "")), client_ip(request)):
+        raise err(400, "We couldn't confirm you're human. Reload the page and try again.")
     kind = "copyright" if data.get("kind") == "copyright" else "abuse"
     url, details = str(data.get("url", "")).strip()[:500], str(data.get("details", "")).strip()[:4000]
     name, email = str(data.get("name", "")).strip()[:120], auth.normalize_email(data.get("email", ""))
@@ -316,6 +402,8 @@ async def reset_password(request: Request):
     password = str(data.get("password", ""))
     if len(password) < auth.MIN_PASSWORD or len(password) > 200:
         raise err(400, f"Use a password of at least {auth.MIN_PASSWORD} characters.")
+    if await run_in_threadpool(auth.password_is_breached, password):
+        raise err(400, "That password appears in known data breaches. Choose a different one.")
     user_id = auth.consume_email_token(data.get("token", ""), "reset")
     if not user_id:
         raise err(400, "This link has expired or was already used. Ask for a new reset link.")
@@ -422,6 +510,8 @@ async def change_password(request: Request):
     if not await run_in_threadpool(auth.verify_password, str(data.get("current", "")), user["pw_hash"]):
         raise err(400, "Your current password is wrong.")
     new = str(data.get("new", ""))
+    if await run_in_threadpool(auth.password_is_breached, new):
+        raise err(400, "That password appears in known data breaches. Choose a different one.")
     if len(new) < auth.MIN_PASSWORD or len(new) > 200:
         raise err(400, f"Use a password of at least {auth.MIN_PASSWORD} characters.")
     db.update_user(user["id"], pw_hash=await run_in_threadpool(auth.hash_password, new))
@@ -802,6 +892,12 @@ async def stripe_webhook(request: Request):
 
 routes = [
     Route("/", landing),
+    Route("/how-it-works", landing),
+    Route("/features", landing),
+    Route("/pricing", landing),
+    Route("/faq", landing),
+    Route("/robots.txt", robots_txt),
+    Route("/sitemap.xml", sitemap_xml),
     Route("/login", login_page),
     Route("/signup", signup_page),
     Route("/copyright", plain_page),
@@ -814,6 +910,7 @@ routes = [
     Route("/terms", legal_page),
     Route("/privacy", legal_page),
     Route("/healthz", healthz),
+    Route("/.well-known/security.txt", security_txt),
     Route("/project/{pid:str}", project_page),
     Route("/api/auth/signup", signup, methods=["POST"]),
     Route("/api/auth/login", login, methods=["POST"]),
@@ -848,6 +945,7 @@ routes = [
     Route("/auth/{platform:str}/callback", oauth_callback),
     Route("/api/publish", publish, methods=["POST"]),
     Route("/api/plans", plans),
+    Route("/api/config", public_config),
     Route("/api/billing/checkout", checkout, methods=["POST"]),
     Route("/api/billing/portal", portal, methods=["POST"]),
     Route("/api/billing/webhook", stripe_webhook, methods=["POST"]),

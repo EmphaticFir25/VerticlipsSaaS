@@ -5,9 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Projects · Verticlip</title>
 <link rel="icon" href="/assets/verticlip-logo.svg" />
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&family=Poppins:wght@700;800&display=swap" rel="stylesheet" />
+<link rel="preload" href="/static/fonts/SchibstedGrotesk-latin.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="stylesheet" href="/static/fonts/fonts.css" />
 <link rel="stylesheet" href="/static/app.css" />
 <script>try{var t=localStorage.getItem("vc-theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
@@ -38,6 +37,8 @@
       <input type="file" id="fileInput" accept="video/*" class="sr" />
       <div class="upbar" id="upbar" hidden><div class="meter"><div id="upMeter" style="width:0"></div></div><p class="muted" id="upText" style="margin-top:8px;font-size:13px"></p></div>
     </div>
+
+    <label class="check" style="display:flex;gap:10px;align-items:flex-start;margin:4px 0 18px;font-size:13.5px;color:var(--muted)"><input type="checkbox" id="rights" style="margin-top:3px" /><span>I own this video or have permission to clip it. <a href="/copyright" style="text-decoration:underline">Copyright policy</a></span></label>
 
     <div class="opts">
       <div>
@@ -125,10 +126,11 @@
     e.preventDefault();
     const url = $("#urlInput").value.trim();
     if (!url) return;
+    if (!$("#rights").checked) { toast("Confirm that you own this video or have permission to clip it.", true); return; }
     const btn = $("#goBtn");
     btn.disabled = true; btn.textContent = "Checking link…";
     try {
-      const { project } = await api("/api/projects", { method: "POST", body: { url, settings: settings() } });
+      const { project } = await api("/api/projects", { method: "POST", body: { url, rights: true, settings: settings() } });
       location.href = `/project/${project.id}`;
     } catch (err) {
       toast(err.message, true);
@@ -139,8 +141,10 @@
   // ---------- start from an upload ----------
   function uploadFile(file) {
     if (!file) return;
+    if (!$("#rights").checked) { toast("Confirm that you own this video or have permission to clip it.", true); return; }
     if (!file.type.startsWith("video/") && !/\.(mp4|mov|mkv|webm|m4v|avi)$/i.test(file.name)) { toast("Choose a video file.", true); return; }
     const fd = new FormData();
+    fd.append("rights", "true");
     fd.append("settings", JSON.stringify(settings()));
     fd.append("file", file);
     const xhr = new XMLHttpRequest();

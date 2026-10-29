@@ -89,6 +89,51 @@ def consume_email_token(token: str, kind: str) -> Optional[str]:
     return db.consume_email_token(_token_hash(str(token or "")), kind)
 
 
+# ---------- sign-up hygiene ----------
+
+DISPOSABLE_DOMAINS = {
+    "mailinator.com", "guerrillamail.com", "guerrillamail.net", "guerrillamail.org", "sharklasers.com", "10minutemail.com",
+    "10minutemail.net", "tempmail.com", "temp-mail.org", "temp-mail.io", "throwawaymail.com", "yopmail.com", "yopmail.net",
+    "trashmail.com", "trashmail.net", "getnada.com", "nada.email", "maildrop.cc", "dispostable.com", "fakeinbox.com",
+    "mailnesia.com", "mintemail.com", "mytemp.email", "tempinbox.com", "emailondeck.com", "spamgourmet.com", "mohmal.com",
+    "burnermail.io", "inboxkitten.com", "tempr.email", "discard.email", "mailcatch.com", "moakt.com", "tmpmail.org",
+    "tmpmail.net", "gettempmail.com", "anonbox.net", "33mail.com", "spambox.us", "mailtemp.net", "tempail.com",
+    "emailfake.com", "fakemail.net", "luxusmail.org", "byom.de", "zeroe.ml", "owlymail.com", "mail.tm", "1secmail.com",
+}
+
+
+def is_disposable(email: str) -> bool:
+    return email.rsplit("@", 1)[-1].lower() in DISPOSABLE_DOMAINS
+
+
+def password_is_breached(password: str) -> bool:
+    """Have I Been Pwned range API (k-anonymity: only the first 5 characters of the SHA-1 leave this server).
+    Fails open: if the service can't be reached, the password is accepted."""
+    if not config.HIBP_CHECK:
+        return False
+    import requests
+    digest = hashlib.sha1(password.encode()).hexdigest().upper()
+    try:
+        r = requests.get(f"https://api.pwnedpasswords.com/range/{digest[:5]}", headers={"Add-Padding": "true"}, timeout=3)
+        if r.status_code != 200:
+            return False
+    except requests.RequestException:
+        return False
+    return any(line.split(":")[0] == digest[5:] and int(line.split(":")[1] or 0) > 0 for line in r.text.splitlines() if ":" in line)
+
+
+def captcha_ok(token: str, ip: str) -> bool:
+    if not (config.TURNSTILE_SECRET and config.TURNSTILE_SITE_KEY):
+        return True
+    import requests
+    try:
+        r = requests.post("https://challenges.cloudflare.com/turnstile/v0/siteverify", timeout=8,
+                          data={"secret": config.TURNSTILE_SECRET, "response": token or "", "remoteip": ip})
+        return bool(r.json().get("success"))
+    except (requests.RequestException, ValueError):
+        return False
+
+
 # ---------- login throttling ----------
 
 class Throttle:

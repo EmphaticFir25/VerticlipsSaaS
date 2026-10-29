@@ -110,7 +110,8 @@
       <div class="col">
         <div class="mobile-bar"><a class="brand" href="/dashboard">${ICON.logo}<span>Verticlip</span></a><button class="btn quiet sm" id="menuBtn" aria-label="Menu">${ICON.menu}</button></div>
       </div>`;
-    main.classList.add("main");
+    main.classList.add("main"); main.id = "main"; main.tabIndex = -1;
+    const skip = document.createElement("a"); skip.className = "skip"; skip.href = "#main"; skip.textContent = "Skip to content"; document.body.prepend(skip);
     main.replaceWith(shell);
     $(".col", shell).append(main);
     $("#menuBtn").onclick = (e) => { e.stopPropagation(); $("#side").classList.toggle("open"); };
@@ -146,6 +147,17 @@
     };
   }
 
-  window.VC = { $, $$, esc, sleep, api, toast, fmtDur, timeAgo, tier, safeNext, ICON, loadMe, drawUsage };
+  /** Cloudflare Turnstile, only when the server has it configured. Returns { token(), reset() }. */
+  async function captcha(box) {
+    const none = { token: () => "", reset() { } };
+    const cfg = await fetch("/api/config").then((r) => r.json()).catch(() => ({}));
+    if (!cfg.turnstile_site_key) return none;
+    await new Promise((done) => { const s = document.createElement("script"); s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"; s.onload = done; s.onerror = done; document.head.append(s); });
+    if (!window.turnstile) return none;
+    const id = window.turnstile.render(box, { sitekey: cfg.turnstile_site_key });
+    return { token: () => window.turnstile.getResponse(id) || "", reset: () => window.turnstile.reset(id) };
+  }
+
+  window.VC = { captcha, $, $$, esc, sleep, api, toast, fmtDur, timeAgo, tier, safeNext, ICON, loadMe, drawUsage };
   if (document.body.dataset.shell === "app") mountShell();
 })();

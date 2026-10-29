@@ -4,10 +4,10 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Privacy Policy · Verticlip</title>
+<meta name="description" content="How Verticlip collects, uses and protects personal information, and your rights." />
 <link rel="icon" href="/assets/verticlip-logo.svg" />
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&family=Poppins:wght@700;800&display=swap" rel="stylesheet" />
+<link rel="preload" href="/static/fonts/SchibstedGrotesk-latin.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="stylesheet" href="/static/fonts/fonts.css" />
 <link rel="stylesheet" href="/static/app.css" />
 <style>
   .doc { max-width: 760px; margin: 0 auto; padding: 40px 22px 90px; }
@@ -17,45 +17,98 @@
   .doc p, .doc li { color: var(--muted); }
   .doc p + p { margin-top: 10px; }
   .doc ul { padding-left: 20px; display: grid; gap: 6px; }
-  .doc a.u { color: var(--volt); text-decoration: underline; }
+  .doc a { color: var(--volt); text-decoration: underline; }
+  .doc table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 10px; }
+  .doc th, .doc td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); color: var(--muted); }
+  .doc th { color: var(--text); font-weight: 600; }
+  .doc form .field { margin-top: 14px; }
+  .doc .check { display: flex; gap: 10px; align-items: flex-start; margin-top: 14px; color: var(--muted); }
+  .doc .note-box { padding: 14px 16px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); margin-top: 14px; }
 </style>
 <script>try{var t=localStorage.getItem("vc-theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
 <div class="doc">
-  <div class="top"><a class="brand" href="/" style="padding:0" id="b"></a><nav class="muted" style="display:flex;gap:18px;font-weight:600;font-size:14px"><a href="/terms">Terms</a><a href="/privacy">Privacy</a></nav></div>
+  <div class="top"><a class="brand" href="/" style="padding:0" id="b"></a><nav class="muted" style="display:flex;gap:16px;font-weight:600;font-size:14px;flex-wrap:wrap"><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/copyright">Copyright</a><a href="/support">Support</a></nav></div>
   <h1>Privacy Policy</h1>
-  <p class="faint">Last updated: October 28, 2026</p>
+  <p class="faint">Last updated: October 29, 2026</p>
 
-  <p>This policy explains what Verticlip ("Verticlip," "we," "us") collects, how it is used, and your choices. Questions: <a class="u" href="mailto:jthomaselder6@gmail.com">jthomaselder6@gmail.com</a>.</p>
-  <h2>1. Information we collect</h2>
-  <p><b>Your account.</b> Email address, optional name, and a salted hash of your password (we never store the password itself).</p>
-  <p><b>Billing.</b> If you subscribe, Stripe processes your payment. We receive your Stripe customer and subscription IDs and plan, not your card details.</p>
-  <p><b>Content you provide.</b> Video links and files, logo images, the transcripts and clips generated from them, and your brand-kit settings.</p>
-  <p><b>Connected accounts.</b> For YouTube we receive your channel ID and title and request the youtube.upload and youtube.readonly permissions. For TikTok we receive your open ID and display name and request user.info.basic and video.upload. We use these only to show which accounts are connected and to upload clips you choose to publish.</p>
-  <p><b>Technical data.</b> Server logs such as request times, IP addresses and error messages, used to secure and run the service.</p>
-  <h2>2. How we use information</h2>
+  <p>This policy explains what personal information {{LEGAL_NAME}} ("Verticlip," "we," "us") collects when you use Verticlip, why, how long we keep it, who receives it, and your rights. {{LEGAL_NAME}} is the controller of your personal data. Address: {{LEGAL_ADDRESS}}. Privacy contact: <a href="mailto:{{PRIVACY_EMAIL}}">{{PRIVACY_EMAIL}}</a>.</p>
+
+  <h2>1. What we collect</h2>
   <ul>
-    <li>To transcribe your videos, find and score clip moments, and render clips.</li>
-    <li>To upload the clips you select to the accounts you connected.</li>
-    <li>To run your plan, track minutes used, and handle billing.</li>
-    <li>To operate, secure and troubleshoot the service.</li>
+    <li><b>Account data:</b> email address, optional name, a salted hash of your password (never the password), whether you confirmed your email, and when you accepted our Terms and confirmed your age.</li>
+    <li><b>Content you provide:</b> video links and uploaded files, logo images, and the transcripts, scores, titles and clips we generate from them, plus your brand-kit settings.</li>
+    <li><b>Connected accounts:</b> for YouTube, your channel ID and title (permissions youtube.upload and youtube.readonly); for TikTok, your open ID and display name (user.info.basic and video.upload). Access tokens are encrypted at rest. We use this data only to show which accounts are connected and to upload clips you choose to publish.</li>
+    <li><b>Billing data:</b> Stripe processes payments. We receive your Stripe customer and subscription IDs and your plan, not your card number.</li>
+    <li><b>Technical data:</b> server logs with request times, IP addresses and error messages, used for security and troubleshooting.</li>
   </ul>
-  <p>We do not sell personal information, and we do not use YouTube or TikTok user data for advertising or to train AI models.</p>
-  <h2>3. Service providers</h2>
-  <p>To process a video we send its audio to OpenAI for transcription and its transcript to Anthropic for clip scoring. Both process the data to return results to us under their API terms. Payments go through Stripe. Uploads you request go to Google (YouTube) and TikTok.</p>
-  <h2>4. Storage and security</h2>
-  <p>Clips, transcripts and source files are stored on our servers until you delete the project or your account. OAuth tokens for connected accounts are encrypted at rest. No system is perfectly secure, so keep your password private.</p>
-  <h2>5. Your choices</h2>
+
+  <h2>2. Why we use it, and our legal basis</h2>
+  <table>
+    <tr><th>Purpose</th><th>Legal basis (GDPR)</th></tr>
+    <tr><td>Create and run your account; transcribe videos, find and score moments, render clips; publish clips you choose</td><td>Performing our contract with you</td></tr>
+    <tr><td>Billing, plan limits and tax records</td><td>Contract, and legal obligation</td></tr>
+    <tr><td>Security, abuse and fraud prevention, rate limiting, copyright takedowns</td><td>Legitimate interests in protecting the service and others' rights</td></tr>
+    <tr><td>Service emails: email confirmation, password reset, project-finished notices (you can turn the last off in Settings)</td><td>Contract and legitimate interests</td></tr>
+  </table>
+  <p>We do not sell or share personal information for advertising, we do not use your content to train AI models, and we do not use YouTube or TikTok user data for advertising. We make no decisions about you with legal or similarly significant effects by automated means. The AI only proposes clips, titles and scores for videos you submit.</p>
+
+  <h2>3. Who receives your data</h2>
+  <table>
+    <tr><th>Recipient</th><th>What for</th></tr>
+    <tr><td>OpenAI</td><td>Receives the audio of videos you submit, to transcribe it</td></tr>
+    <tr><td>Anthropic</td><td>Receives the transcript, to find and score clip moments and write titles</td></tr>
+    <tr><td>Stripe</td><td>Payments and subscriptions</td></tr>
+    <tr><td>Google (YouTube), TikTok</td><td>Only when you connect an account and publish a clip</td></tr>
+    <tr><td>Our email provider</td><td>Delivers confirmation and password-reset emails</td></tr>
+    <tr><td>Our hosting and network providers (including Cloudflare where used)</td><td>Run the servers and protect them from abuse</td></tr>
+  </table>
+  <p>Under their current API terms, OpenAI and Anthropic do not use content sent through their APIs to train their models. We may also disclose data when the law requires it or to protect rights and safety.</p>
+
+  <h2>4. Transfers outside your country</h2>
+  <p>Several recipients above are in the United States. Where the law requires a transfer mechanism, we rely on the recipient's participation in the EU-US Data Privacy Framework or on Standard Contractual Clauses.</p>
+
+  <h2>5. How long we keep it</h2>
   <ul>
-    <li>Delete any project, with its clips and transcript, from the project page.</li>
-    <li>Disconnect a YouTube or TikTok account in Social accounts to delete its stored tokens, or revoke access from your Google or TikTok settings.</li>
-    <li>Email <a class="u" href="mailto:jthomaselder6@gmail.com">jthomaselder6@gmail.com</a> to delete your account and all its data. We complete deletions within 30 days.</li>
+    <li>Original videos: deleted {{SOURCE_DAYS}} days after processing finishes.</li>
+    <li>Projects, clips, transcripts and thumbnails: deleted {{PROJECT_DAYS}} days after you create them, or sooner if you delete them.</li>
+    <li>Accounts that never confirm their email: deleted after a few days.</li>
+    <li>Account data: until you delete your account. After deletion we keep only what the law requires, such as payment and tax records held by Stripe and us.</li>
+    <li>Security logs: kept for a short period, normally no more than 90 days.</li>
+    <li>Copyright and abuse reports: kept as long as needed to handle them and to document our repeat-infringer policy.</li>
   </ul>
-  <h2>6. Children</h2>
-  <p>Verticlip is not directed to children under 13, and we do not knowingly collect information from them.</p>
-  <h2>7. Changes</h2>
-  <p>We may update this policy. The date at the top shows when it last changed. Material changes will be announced in the app.</p>
+
+  <h2>6. Cookies and similar storage</h2>
+  <p>We use only what the service needs to work, so we do not show a cookie banner. If we add analytics or advertising, we will ask first.</p>
+  <table>
+    <tr><th>Name</th><th>Purpose</th><th>Lifetime</th></tr>
+    <tr><td>vc_session (cookie)</td><td>Keeps you logged in. HttpOnly, and Secure over HTTPS.</td><td>30 days or until you log out</td></tr>
+    <tr><td>vc-theme (local storage)</td><td>Remembers your light or dark choice</td><td>Until you clear it</td></tr>
+  </table>
+  <p>On sign-up and report forms we may use Cloudflare Turnstile to stop bots. It runs a short check in your browser and may set its own technical cookies for that purpose.</p>
+
+  <h2>7. Your rights</h2>
+  <p>Depending on where you live (for example under the GDPR, UK GDPR, or California law) you can access your data, correct it, delete it, receive a portable copy, restrict or object to some processing, and withdraw consent where we rely on it. You can do the most common things yourself:</p>
+  <ul>
+    <li><b>Download your data</b> and <b>delete your account</b> from Settings. Deletion also cancels any subscription.</li>
+    <li>Delete any project from its page, and disconnect a YouTube or TikTok account in Social accounts.</li>
+    <li>For anything else, email <a href="mailto:{{PRIVACY_EMAIL}}">{{PRIVACY_EMAIL}}</a>. We reply within 30 days.</li>
+  </ul>
+  <p>If you are in the EU or UK you may also complain to your local data protection authority.</p>
+
+  <h2>8. California privacy notice</h2>
+  <p>In the last 12 months we collected the categories of personal information listed in section 1 for the business purposes in section 2. We have not sold or shared personal information for cross-context behavioural advertising. California residents can request to know, delete or correct their information, and we will not discriminate against you for doing so. Use the contacts above.</p>
+
+  <h2>9. Security</h2>
+  <p>Passwords are hashed with scrypt, connections use HTTPS, connected-account tokens are encrypted, accounts are isolated from each other, and we limit login attempts. No system is perfectly secure. If a breach affects your personal data, we will notify you and the relevant authorities as the law requires.</p>
+
+  <h2>10. Children</h2>
+  <p>Verticlip is for people aged {{MIN_AGE}} and over. We do not knowingly collect data from younger children. If you believe a child has signed up, email us and we will delete the account.</p>
+
+  <h2>11. Changes</h2>
+  <p>We may update this policy. The date above shows the latest version, and we will announce material changes in the app or by email.</p>
+
 </div>
 <script src="/static/app.js"></script>
 <script>VC.$("#b").innerHTML = `${VC.ICON.logo}<span>Verticlip</span>`;</script>

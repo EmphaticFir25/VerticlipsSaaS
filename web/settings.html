@@ -5,15 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Settings · Verticlip</title>
 <link rel="icon" href="/assets/verticlip-logo.svg" />
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&family=Poppins:wght@700;800&display=swap" rel="stylesheet" />
+<link rel="preload" href="/static/fonts/SchibstedGrotesk-latin.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="stylesheet" href="/static/fonts/fonts.css" />
 <link rel="stylesheet" href="/static/app.css" />
 <script>try{var t=localStorage.getItem("vc-theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body data-shell="app" data-page="settings">
 <main>
-  <header class="page-head"><div><h1>Settings</h1><p>Your profile and password.</p></div></header>
+  <header class="page-head"><div><h1>Settings</h1><p>Your profile, notifications and data.</p></div></header>
   <div class="stack" style="max-width:560px">
     <form class="card pad" id="profile">
       <h2 style="font-size:18px;margin-bottom:16px">Profile</h2>
@@ -28,12 +27,37 @@
       <p class="muted" style="font-size:13px;margin-top:8px">Changing it signs you out everywhere else.</p>
       <button class="btn" style="margin-top:18px">Change password</button>
     </form>
+    <div class="card pad">
+      <h2 style="font-size:18px;margin-bottom:6px">Notifications</h2>
+      <label class="check" style="display:flex;gap:10px;align-items:flex-start;margin-top:12px;color:var(--muted)"><input type="checkbox" id="notify" style="margin-top:3px" /><span>Email me when a project finishes processing.</span></label>
+    </div>
+    <div class="card pad">
+      <h2 style="font-size:18px;margin-bottom:6px">Your data</h2>
+      <p class="muted" style="font-size:14px">Download a copy of everything stored about your account: profile, projects, clips and transcripts. We delete projects automatically after {{PROJECT_DAYS}} days and original videos after {{SOURCE_DAYS}} days.</p>
+      <a class="btn ghost" href="/api/me/export" download style="margin-top:16px">Download my data</a>
+    </div>
+    <form class="card pad" id="del" style="border-color:rgba(217,45,32,.35)">
+      <h2 style="font-size:18px;margin-bottom:6px">Delete account</h2>
+      <p class="muted" style="font-size:14px">Permanently deletes your account, projects, clips, brand kit and connected accounts, and cancels any subscription. This can't be undone.</p>
+      <div class="field" style="margin-top:14px"><label for="delpw">Confirm with your password</label><input class="input" id="delpw" type="password" autocomplete="current-password" required /></div>
+      <button class="btn" style="margin-top:16px;background:var(--red);color:var(--bg)">Delete my account</button>
+    </form>
   </div>
 </main>
 <script src="/static/app.js"></script>
 <script>
   const { $, api, toast } = VC;
-  VC.loadMe().then((me) => { $("#name").value = me.user.name; $("#email").value = me.user.email; });
+  VC.loadMe().then((me) => { $("#name").value = me.user.name; $("#email").value = me.user.email; $("#notify").checked = me.user.notify_email; });
+  $("#notify").onchange = async (e) => {
+    try { await api("/api/me", { method: "PATCH", body: { notify_email: e.target.checked } }); toast("Saved"); }
+    catch (err) { toast(err.message, true); e.target.checked = !e.target.checked; }
+  };
+  $("#del").onsubmit = async (e) => {
+    e.preventDefault();
+    if (!confirm("Delete your account and all your data? This can't be undone.")) return;
+    try { await api("/api/me", { method: "DELETE", body: { password: $("#delpw").value } }); location.href = "/"; }
+    catch (err) { toast(err.message, true); }
+  };
   $("#profile").onsubmit = async (e) => {
     e.preventDefault();
     try { await api("/api/me", { method: "PATCH", body: { name: $("#name").value } }); toast("Saved"); VC.loadMe(true).then(VC.drawUsage); }

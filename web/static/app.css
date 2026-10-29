@@ -391,3 +391,7 @@ details.tx p { margin-top: 8px; color: var(--muted); font-size: 14px; max-height
 .theme button[aria-pressed="true"] { background: var(--text); color: var(--bg); }
 .banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 22px; padding: 14px 18px; border-radius: var(--r-md); background: rgba(var(--volt-rgb), .09); border: 1px solid rgba(var(--volt-rgb), .3); font-size: 14px; }
 .banner b { font-weight: 600; }
+
+.skip { position: absolute; left: 12px; top: -60px; z-index: 100; padding: 8px 14px; border-radius: 10px; background: var(--text); color: var(--bg); font-weight: 600; }
+.skip:focus { top: 12px; }
+main:focus { outline: none; }

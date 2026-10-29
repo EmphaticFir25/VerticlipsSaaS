@@ -38,7 +38,7 @@ CONTACT_EMAIL = _env("CONTACT_EMAIL", "support@localhost")
 PRIVACY_EMAIL = _env("PRIVACY_EMAIL") or CONTACT_EMAIL
 ABUSE_EMAIL = _env("ABUSE_EMAIL") or CONTACT_EMAIL        # also the designated DMCA agent address
 SECURITY_EMAIL = _env("SECURITY_EMAIL") or CONTACT_EMAIL
-JURISDICTION = _env("JURISDICTION", "the jurisdiction where the operator is established")
+JURISDICTION = _env("JURISDICTION", "the Commonwealth of Massachusetts, United States")
 MIN_AGE = _int("MIN_AGE", 16)
 SIGNUPS_PER_HOUR = _int("SIGNUPS_PER_HOUR", 10)   # per network address
 
@@ -46,6 +46,15 @@ SIGNUPS_PER_HOUR = _int("SIGNUPS_PER_HOUR", 10)   # per network address
 SOURCE_RETENTION_DAYS = _int("SOURCE_RETENTION_DAYS", 14)       # the uploaded or downloaded original video
 PROJECT_RETENTION_DAYS = _int("PROJECT_RETENTION_DAYS", 90)     # clips, transcript, thumbnails
 UNVERIFIED_ACCOUNT_DAYS = _int("UNVERIFIED_ACCOUNT_DAYS", 7)    # accounts that never confirmed their email
+
+# ---------- abuse protection ----------
+TURNSTILE_SITE_KEY = _env("TURNSTILE_SITE_KEY")      # Cloudflare Turnstile (free). Both keys set = bot check on sign-up
+TURNSTILE_SECRET = _env("TURNSTILE_SECRET")
+HIBP_CHECK = _env("HIBP_CHECK", "true").lower() == "true"   # refuse passwords found in known data breaches
+BLOCK_DISPOSABLE_EMAIL = _env("BLOCK_DISPOSABLE_EMAIL", "true").lower() == "true"
+
+API_WRITES_PER_MINUTE = _int("API_WRITES_PER_MINUTE", 120)   # per network address, across all write endpoints
+SENTRY_DSN = _env("SENTRY_DSN")                              # optional error tracking; personal data is stripped before sending
 
 # ---------- email (verification and password reset) ----------
 SMTP_HOST = _env("SMTP_HOST")

@@ -3,12 +3,22 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Verticlip · Long videos in, shorts out</title>
-<meta name="description" content="Paste a long video. Verticlip finds the best moments, scores them, adds captions and publishes to YouTube Shorts and TikTok." />
+<title>{{SEO_TITLE}}</title>
+<meta name="description" content="{{SEO_DESC}}" />
+<link rel="canonical" href="{{PUBLIC_BASE}}{{SEO_PATH}}" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="Verticlip" />
+<meta property="og:title" content="{{SEO_TITLE}}" />
+<meta property="og:description" content="{{SEO_DESC}}" />
+<meta property="og:url" content="{{PUBLIC_BASE}}{{SEO_PATH}}" />
+<meta property="og:image" content="{{PUBLIC_BASE}}/assets/og.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta name="twitter:card" content="summary_large_image" />
+<script type="application/ld+json">{{JSONLD}}</script>
 <link rel="icon" href="/assets/verticlip-logo.svg" />
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="preload" href="/static/fonts/SchibstedGrotesk-latin.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="stylesheet" href="/static/fonts/fonts.css" />
 <style>
   :root {
     --paper: #f4f6fa; --ink: #0e1424; --slate: #5b6478; --line: #dce1ec; --blue: #2438ff; --mist: #e7eafe; --white: #ffffff;
@@ -50,6 +60,8 @@
   .nav nav a:not(.btn) { color: var(--slate); text-decoration: none; }
   .nav nav a:not(.btn):hover { color: var(--ink); }
 
+  .skip { position: absolute; left: 12px; top: -60px; z-index: 100; padding: .6rem 1rem; border-radius: 10px; background: var(--ink); color: var(--paper); font-weight: 600; text-decoration: none; }
+  .skip:focus { top: 12px; }
   /* header actions */
   .actions { position: relative; display: flex; align-items: center; gap: .5rem; }
   .icon-btn { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; }
@@ -94,6 +106,12 @@
   dialog .btn { width: 100%; margin-top: 1.3rem; padding: 1em; }
   .swap { margin-top: 1rem; font-size: var(--step--1); color: var(--slate); }
   .swap button { background: none; border: 0; padding: 0; color: var(--blue); font: 600 inherit; font-family: var(--font); cursor: pointer; text-decoration: underline; }
+
+  .agree { display: flex; gap: .6rem; align-items: flex-start; margin-top: 1rem; font-size: var(--step--1); color: var(--slate); }
+  .agree[hidden], #capBox[hidden] { display: none; }
+  .agree input { margin-top: .25rem; }
+  .agree a { color: var(--ink); text-decoration: underline; }
+  #capBox { margin-top: 1rem; }
 
   /* hero */
   .hero { padding: clamp(32px, 5vw, 72px) 0 clamp(48px, 7vw, 96px); }
@@ -194,9 +212,10 @@
 <script>try{var t=localStorage.getItem("vc-theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
+<a class="skip" href="#top">Skip to content</a>
 <header class="top" id="hdr">
   <div class="wrap nav">
-    <a class="logo" href="#home" aria-label="Verticlip home">
+    <a class="logo" href="/" aria-label="Verticlip home">
       <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="6.5" y="2.5" width="11" height="19" rx="3" stroke="currentColor" stroke-width="2"/><path d="M10.5 8.5v7l5-3.5z" fill="currentColor"/></svg>
       Verticlip
     </a>
@@ -228,13 +247,15 @@
   <form id="authForm" novalidate>
     <label class="field">Email<input type="email" name="email" autocomplete="email" required placeholder="you@example.com" /></label>
     <label class="field">Password<input type="password" name="password" id="pw" autocomplete="current-password" required placeholder="Your password" /></label>
+    <label class="agree" id="agreeRow" hidden><input type="checkbox" id="agree" /><span>I am {{MIN_AGE}} or older and I accept the <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a>.</span></label>
+    <div id="capBox" hidden></div>
     <button class="btn" id="authSubmit">Sign in</button>
     <p class="err" id="authErr" role="alert"></p>
   </form>
   <p class="swap" id="swap"></p>
 </dialog>
 
-<main id="top">
+<main id="top" tabindex="-1">
   <div class="panel" id="p-home" role="tabpanel" aria-labelledby="t-home" hidden>
   <section class="wrap hero">
     <h1>One long video.<br>A week of shorts.</h1>
@@ -340,7 +361,7 @@
   </div>
 </main>
 
-<footer><div class="wrap"><span>© 2026 Verticlip. Only clip videos you own or have permission to use.</span><span><a href="/terms">Terms</a><a href="/privacy">Privacy</a></span></div></footer>
+<footer><div class="wrap"><span>© 2026 Verticlip. Only clip videos you own or have permission to use.</span><span><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/copyright">Copyright</a><a href="/refunds">Refunds</a><a href="/support">Support</a></span></div></footer>
 
 <script>
 (() => {
@@ -352,23 +373,30 @@
 
   // ----- tabs (hash routed, so each tab can be linked to)
   const tabs = $$(".tab"), names = tabs.map((t) => t.dataset.tab);
+  // every tab has its own address, so it can be linked to, bookmarked and found by search engines
+  const PATH = { home: "/", how: "/how-it-works", features: "/features", pricing: "/pricing", faq: "/faq" };
+  const fromPath = () => names.find((n) => PATH[n] === (location.pathname.replace(/\/$/, "") || "/")) || location.hash.slice(1);
+  function go(name, push) {
+    if (push && PATH[name] !== location.pathname) history.pushState(null, "", PATH[name]);
+    document.title = name === "home" ? "Verticlip" : $("#t-" + name).textContent.trim() + " · Verticlip";
+    show(name);
+  }
   function show(name, focus) {
     if (!names.includes(name)) name = "home";
     names.forEach((n) => { $("#p-" + n).hidden = n !== name; });
     tabs.forEach((t) => { const on = t.dataset.tab === name; t.setAttribute("aria-selected", on); t.tabIndex = on ? 0 : -1; if (on && focus) t.focus(); });
-    document.title = (name === "home" ? "Verticlip" : $("#t-" + name).textContent.trim() + " · Verticlip");
     scrollTo({ top: 0, behavior: "instant" });
   }
   tabs.forEach((t, i) => {
-    t.addEventListener("click", () => { location.hash = t.dataset.tab; });
+    t.addEventListener("click", () => go(t.dataset.tab, true));
     t.addEventListener("keydown", (e) => {
-      const d = { ArrowRight: 1, ArrowLeft: -1 }[e.key]; if (e.key === "Home") return go(0); if (e.key === "End") return go(tabs.length - 1);
-      if (d) go((i + d + tabs.length) % tabs.length);
-      function go(n) { e.preventDefault(); location.hash = names[n]; show(names[n], true); }
+      const d = { ArrowRight: 1, ArrowLeft: -1 }[e.key]; if (e.key === "Home") return go2(0); if (e.key === "End") return go2(tabs.length - 1);
+      if (d) go2((i + d + tabs.length) % tabs.length);
+      function go2(n) { e.preventDefault(); go(names[n], true); show(names[n], true); }
     });
   });
-  addEventListener("hashchange", () => show(location.hash.slice(1)));
-  show(location.hash.slice(1));
+  addEventListener("popstate", () => go(names.includes(fromPath()) ? fromPath() : "home"));
+  show(fromPath());
 
   // ----- theme: system (no attribute), light or dark
   const root = document.documentElement;
@@ -407,6 +435,17 @@
     $("#pw").placeholder = up ? "At least 8 characters" : "Your password";
     $("#swap").innerHTML = up ? `Already have an account? <button type="button" data-swap="signin">Sign in</button>` : `New to Verticlip? <button type="button" data-swap="signup">Create an account</button>`;
     errEl.textContent = "";
+    $("#agreeRow").hidden = !up; $("#capBox").hidden = !up;
+    if (up && !capLoaded) { capLoaded = true; loadCaptcha(); }
+  }
+  let capLoaded = false, cap = { token: () => "", reset() { } };
+  async function loadCaptcha() {
+    const cfg = await fetch("/api/config").then((r) => r.json()).catch(() => ({}));
+    if (!cfg.turnstile_site_key) return;
+    await new Promise((done) => { const s = document.createElement("script"); s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"; s.onload = done; s.onerror = done; document.head.append(s); });
+    if (!window.turnstile) return;
+    const id = window.turnstile.render($("#capBox"), { sitekey: cfg.turnstile_site_key });
+    cap = { token: () => window.turnstile.getResponse(id) || "", reset: () => window.turnstile.reset(id) };
   }
   $("#swap").addEventListener("click", (e) => { const b = e.target.closest("[data-swap]"); if (b) setMode(b.dataset.swap); });
   function openAuth(m, to) { closePop(); dest = to || "/dashboard"; setMode(m); form.reset(); dlg.showModal(); $("[name=email]", form).focus(); }
@@ -429,11 +468,13 @@
     e.preventDefault(); errEl.textContent = "";
     const email = $("[name=email]", form).value.trim(), password = $("#pw").value;
     if (!email || !password) { errEl.textContent = "Enter your email and password."; return; }
+    if (mode === "signup" && !$("#agree").checked) { errEl.textContent = "Please confirm your age and accept the Terms and Privacy Policy."; return; }
     submit.disabled = true;
     try {
-      await call(mode === "signup" ? "/api/auth/signup" : "/api/auth/login", { method: "POST", body: { email, password } });
+      const body = mode === "signup" ? { email, password, agree: true, captcha: cap.token() } : { email, password };
+      await call(mode === "signup" ? "/api/auth/signup" : "/api/auth/login", { method: "POST", body });
       location.href = dest;
-    } catch (err) { errEl.textContent = err.message; submit.disabled = false; }
+    } catch (err) { errEl.textContent = err.message; submit.disabled = false; cap.reset(); }
   });
   $("#signOut").addEventListener("click", async () => { try { await call("/api/auth/logout", { method: "POST" }); } catch {} paint(null); closePop(); });
   fetch("/api/me", { credentials: "same-origin" }).then((r) => r.ok ? r.json() : null).then((d) => paint(d && d.user)).catch(() => {});
