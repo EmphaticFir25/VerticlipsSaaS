@@ -20,8 +20,10 @@
     --step-3: clamp(2.3rem, 1.4rem + 4vw, 4.6rem);
     --step-4: clamp(2.8rem, 1.2rem + 6.4vw, 6rem);
   }
+  :root[data-theme="dark"] { --paper: #0b0f1c; --ink: #eef1fa; --slate: #98a2bb; --line: #232a3e; --blue: #7d8bff; --mist: #171d38; --white: #121830; color-scheme: dark; }
+  :root[data-theme="light"] { color-scheme: light; }
   @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) { --paper: #0b0f1c; --ink: #eef1fa; --slate: #98a2bb; --line: #232a3e; --blue: #7d8bff; --mist: #171d38; --white: #121830; }
+    :root:not([data-theme]) { --paper: #0b0f1c; --ink: #eef1fa; --slate: #98a2bb; --line: #232a3e; --blue: #7d8bff; --mist: #171d38; --white: #121830; color-scheme: dark; }
   }
   * { box-sizing: border-box; margin: 0; }
   html { scroll-behavior: smooth; }
@@ -47,6 +49,46 @@
   .nav nav a:not(.btn) { color: var(--slate); text-decoration: none; }
   .nav nav a:not(.btn):hover { color: var(--ink); }
 
+  /* header actions */
+  .actions { position: relative; display: flex; align-items: center; gap: .5rem; }
+  .icon-btn { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; }
+  .icon-btn:hover { border-color: var(--ink); }
+  .icon-btn svg { width: 18px; height: 18px; }
+  .avatar { width: 40px; height: 40px; border-radius: 999px; display: none; place-items: center; background: var(--blue); color: #fff; font-weight: 700; text-transform: uppercase; }
+  .signed-in .avatar { display: grid; }
+  .signed-in [data-signin] { display: none; }
+  .pop { position: absolute; right: 0; top: calc(100% + 10px); width: min(300px, 100vw - var(--gutter) * 2); padding: 1.1rem; border: 1px solid var(--line); border-radius: 16px; background: var(--white); box-shadow: 0 18px 40px -18px rgba(14,20,36,.35); }
+  .pop[hidden] { display: none; }
+  .pop h2 { font-size: var(--step--1); font-weight: 600; letter-spacing: 0; max-width: none; line-height: 1.3; margin-bottom: .6rem; }
+  .seg3 { display: grid; grid-template-columns: repeat(3, 1fr); padding: 3px; border-radius: 12px; background: var(--paper); border: 1px solid var(--line); }
+  .seg3 button { border: 0; border-radius: 9px; padding: .55rem 0; background: transparent; color: var(--slate); font: 600 var(--step--1) var(--font); cursor: pointer; }
+  .seg3 button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+  .pop .who { display: none; margin-top: 1.1rem; padding-top: 1rem; border-top: 1px solid var(--line); font-size: var(--step--1); color: var(--slate); }
+  .signed-in .pop .who { display: block; }
+  .pop .who b { display: block; color: var(--ink); font-weight: 600; word-break: break-all; margin-bottom: .6rem; }
+
+  /* tabs */
+  .tabs { position: sticky; top: 68px; z-index: 19; background: color-mix(in srgb, var(--paper) 90%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
+  .tabs .wrap { display: flex; gap: clamp(.9rem, 3vw, 2.2rem); overflow-x: auto; scrollbar-width: none; }
+  .tab { appearance: none; background: none; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; padding: .85rem .1rem; display: flex; align-items: center; gap: .5rem; color: var(--slate); font: 500 var(--step--1) var(--font); cursor: pointer; white-space: nowrap; }
+  .tab svg { display: none; width: 22px; height: 22px; }
+  .tab:hover { color: var(--ink); }
+  .tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--blue); }
+  .panel[hidden] { display: none; }
+
+  /* sign in */
+  dialog { margin: auto; width: min(420px, 100% - 32px); padding: 1.8rem; border: 1px solid var(--line); border-radius: 20px; background: var(--white); color: var(--ink); font: inherit; }
+  dialog::backdrop { background: rgba(8, 12, 24, .55); }
+  dialog h2 { font-size: var(--step-2); line-height: 1.05; max-width: none; }
+  dialog .x { position: absolute; top: .8rem; right: .8rem; }
+  .field { display: grid; gap: .35rem; margin-top: 1rem; font-size: var(--step--1); font-weight: 600; }
+  .field input { padding: .8rem 1rem; border-radius: 12px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); font: 400 var(--step-0) var(--font); }
+  .field input:focus { outline: 2px solid var(--blue); outline-offset: 1px; border-color: transparent; }
+  dialog .btn { width: 100%; margin-top: 1.3rem; padding: 1em; }
+  .swap { margin-top: 1rem; font-size: var(--step--1); color: var(--slate); }
+  .swap button { background: none; border: 0; padding: 0; color: var(--blue); font: 600 inherit; font-family: var(--font); cursor: pointer; text-decoration: underline; }
+  .proto { margin-top: 1rem; padding: .7rem .9rem; border-radius: 10px; background: var(--mist); color: var(--slate); font-size: .8rem; line-height: 1.45; }
+
   /* hero */
   .hero { padding: clamp(32px, 5vw, 72px) 0 clamp(48px, 7vw, 96px); }
   h1 { font-size: var(--step-4); line-height: .94; letter-spacing: -.045em; font-weight: 700; max-width: 16ch; }
@@ -59,7 +101,7 @@
 
   /* demo */
   .demo { margin-top: clamp(36px, 5vw, 64px); display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 300px); gap: clamp(20px, 4vw, 64px); align-items: end; }
-  .tl-head { display: flex; justify-content: space-between; gap: 1rem; font-size: var(--step--1); color: var(--slate); margin-bottom: .9rem; }
+  .tl-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem; font-size: var(--step--1); color: var(--slate); margin-bottom: .9rem; }
   .tl-head b { color: var(--ink); font-weight: 600; }
   .wave { position: relative; margin-top: 2.2rem; height: clamp(120px, 16vw, 190px); display: flex; align-items: center; gap: 2px; }
   .wave i { flex: 1; min-width: 1px; background: var(--line); border-radius: 2px; height: var(--h); transition: background .25s; }
@@ -82,7 +124,7 @@
   .prog i { display: block; height: 100%; width: 0; background: #fff; }
 
   /* sections */
-  section.block { border-top: 1px solid var(--line); padding: clamp(56px, 8vw, 120px) 0; }
+  section.block { padding: clamp(40px, 6vw, 96px) 0 clamp(56px, 8vw, 120px); }
   .split { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: clamp(28px, 6vw, 96px); }
   h2 { font-size: var(--step-3); line-height: 1; letter-spacing: -.04em; font-weight: 700; max-width: 14ch; }
   .sub { margin-top: 1rem; color: var(--slate); max-width: 38ch; }
@@ -121,9 +163,6 @@
   details[open] summary::after { content: "–"; }
   details p { margin-top: .7rem; color: var(--slate); max-width: 56ch; }
 
-  .close { padding: clamp(64px, 10vw, 150px) 0; border-top: 1px solid var(--line); }
-  .close h2 { max-width: 15ch; font-size: var(--step-4); line-height: .95; }
-  .close .btn { margin-top: 2rem; padding: 1.05em 1.9em; font-size: var(--step-0); }
   footer { border-top: 1px solid var(--line); padding: 1.6rem 0 2.4rem; font-size: var(--step--1); color: var(--slate); }
   footer .wrap { display: flex; justify-content: space-between; flex-wrap: wrap; gap: .8rem; }
   footer a { text-decoration: none; margin-left: 1.2rem; }
@@ -136,33 +175,63 @@
     .plans { grid-template-columns: 1fr; border-top: 0; }
     .plan, .plan:first-child { border-left: 0; border-top: 1px solid var(--ink); padding-inline: 0; }
     .plan.pick { padding-inline: 14px; }
-    .nav nav .hide-sm { display: none; }
+    body { padding-bottom: calc(66px + env(safe-area-inset-bottom)); }
+    .tabs { position: fixed; top: auto; bottom: 0; left: 0; right: 0; border-bottom: 0; border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); background: var(--paper); }
+    .tabs .wrap { width: 100%; gap: 0; overflow: visible; }
+    .tab { flex: 1; flex-direction: column; gap: .15rem; padding: .55rem 0 .5rem; border-bottom: 0; margin: 0; font-size: .68rem; }
+    .tab svg { display: block; }
+    .tab[aria-selected="true"] { color: var(--blue); }
+    .signup-btn { display: none; }
   }
   @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
 </style>
 </head>
 <body>
-<header class="top">
+<header class="top" id="hdr">
   <div class="wrap nav">
-    <a class="logo" href="#top" aria-label="Verticlip home">
+    <a class="logo" href="#home" aria-label="Verticlip home">
       <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="6.5" y="2.5" width="11" height="19" rx="3" stroke="currentColor" stroke-width="2"/><path d="M10.5 8.5v7l5-3.5z" fill="currentColor"/></svg>
       Verticlip
     </a>
-    <nav>
-      <a class="hide-sm" href="#how">How it works</a>
-      <a class="hide-sm" href="#features">Features</a>
-      <a class="hide-sm" href="#pricing">Pricing</a>
-      <a href="#">Log in</a>
-      <a class="btn" href="#">Start free</a>
-    </nav>
+    <div class="actions">
+      <button class="icon-btn" id="setBtn" type="button" aria-label="Settings" aria-haspopup="true" aria-expanded="false" aria-controls="settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>
+      </button>
+      <span class="avatar" id="avatar" aria-hidden="true"></span>
+      <button class="btn quiet" type="button" data-signin data-auth="signin">Sign in</button>
+      <button class="btn signup-btn" type="button" data-signin data-auth="signup">Start free</button>
+      <div class="pop" id="settings" role="dialog" aria-label="Settings" hidden>
+        <h2 id="themeLbl">Appearance</h2>
+        <div class="seg3" role="group" aria-labelledby="themeLbl">
+          <button type="button" data-theme-set="system" aria-pressed="true">System</button>
+          <button type="button" data-theme-set="light" aria-pressed="false">Light</button>
+          <button type="button" data-theme-set="dark" aria-pressed="false">Dark</button>
+        </div>
+        <div class="who"><b id="whoEmail"></b><button class="btn quiet" type="button" id="signOut" style="width:100%">Sign out</button></div>
+      </div>
+    </div>
   </div>
 </header>
+<div class="tabs"><div class="wrap" role="tablist" aria-label="Sections"><button class="tab" role="tab" id="t-home" data-tab="home" aria-controls="p-home" aria-selected="false" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Home</button><button class="tab" role="tab" id="t-how" data-tab="how" aria-controls="p-how" aria-selected="false" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l6-3.5z"/></svg>How it works</button><button class="tab" role="tab" id="t-features" data-tab="features" aria-controls="p-features" aria-selected="false" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Features</button><button class="tab" role="tab" id="t-pricing" data-tab="pricing" aria-controls="p-pricing" aria-selected="false" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18M16.5 7.5C15.5 6.3 14 6 12 6c-2.5 0-4 1.1-4 2.8 0 4 8.5 1.7 8.5 6 0 1.8-1.7 3.2-4.5 3.2-2 0-3.7-.6-4.7-1.9"/></svg>Pricing</button><button class="tab" role="tab" id="t-faq" data-tab="faq" aria-controls="p-faq" aria-selected="false" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.6 2.2c-.7.4-1.1 1-1.1 1.8M12 17h.01"/></svg>FAQ</button></div></div>
+
+<dialog id="auth" aria-labelledby="authTitle">
+  <button class="icon-btn x" type="button" id="authClose" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  <h2 id="authTitle">Sign in</h2>
+  <form id="authForm">
+    <label class="field">Email<input type="email" name="email" autocomplete="email" required placeholder="you@example.com" /></label>
+    <label class="field">Password<input type="password" name="password" id="pw" autocomplete="current-password" required minlength="8" placeholder="At least 8 characters" /></label>
+    <button class="btn" id="authSubmit">Sign in</button>
+  </form>
+  <p class="swap" id="swap"></p>
+  <p class="proto">Prototype only: this form is not connected to the real account system yet, and nothing you type is sent anywhere.</p>
+</dialog>
 
 <main id="top">
+  <div class="panel" id="p-home" role="tabpanel" aria-labelledby="t-home" hidden>
   <section class="wrap hero">
     <h1>One long video.<br>A week of shorts.</h1>
     <p class="lede">Paste a link. Verticlip picks the moments worth posting, captions them, and sends them to YouTube Shorts and TikTok.</p>
-    <form class="try" onsubmit="return false">
+    <form class="try" data-auth="signup">
       <label class="sr" for="url">Video link</label>
       <input id="url" type="url" inputmode="url" placeholder="Paste a video link" />
       <button class="btn">Get free clips</button>
@@ -184,7 +253,10 @@
     </div>
   </section>
 
-  <section class="block" id="how">
+  </div>
+
+  <div class="panel" id="p-how" role="tabpanel" aria-labelledby="t-how" hidden>
+  <section class="block">
     <div class="wrap split">
       <div><h2>From link to posted in three steps</h2><p class="sub">No timeline scrubbing. You review a ranked list of finished clips and publish the ones you like.</p></div>
       <ol class="steps">
@@ -195,7 +267,10 @@
     </div>
   </section>
 
-  <section class="block" id="features">
+  </div>
+
+  <div class="panel" id="p-features" role="tabpanel" aria-labelledby="t-features" hidden>
+  <section class="block">
     <div class="wrap split">
       <div><h2>Everything a short needs</h2></div>
       <div class="list">
@@ -210,7 +285,10 @@
     </div>
   </section>
 
-  <section class="block" id="pricing">
+  </div>
+
+  <div class="panel" id="p-pricing" role="tabpanel" aria-labelledby="t-pricing" hidden>
+  <section class="block">
     <div class="wrap">
       <h2>Plans are billed by minutes of video</h2>
       <p class="sub">Minutes reset every month. If a project fails or you cancel it, the minutes come back.</p>
@@ -219,24 +297,27 @@
           <h3>Free</h3>
           <div class="price">$0<small>per month</small></div>
           <ul><li>30 minutes a month</li><li>Up to 6 clips per video</li><li>Made with Verticlip mark</li></ul>
-          <a class="btn quiet" href="#">Start free</a>
+          <button class="btn quiet" type="button" data-auth="signup">Start free</button>
         </section>
         <section class="plan pick">
           <h3>Pro <em>Most popular</em></h3>
           <div class="price">$19<small>per month</small></div>
           <ul><li>600 minutes a month</li><li>Up to 15 clips per video</li><li>Your logo, no watermark</li></ul>
-          <a class="btn" href="#">Choose Pro</a>
+          <button class="btn" type="button" data-auth="signup">Choose Pro</button>
         </section>
         <section class="plan">
           <h3>Studio</h3>
           <div class="price">$49<small>per month</small></div>
           <ul><li>1,200 minutes a month</li><li>Up to 25 clips per video</li><li>Your logo, no watermark</li></ul>
-          <a class="btn quiet" href="#">Choose Studio</a>
+          <button class="btn quiet" type="button" data-auth="signup">Choose Studio</button>
         </section>
       </div>
     </div>
   </section>
 
+  </div>
+
+  <div class="panel" id="p-faq" role="tabpanel" aria-labelledby="t-faq" hidden>
   <section class="block">
     <div class="wrap split">
       <div><h2>Questions</h2></div>
@@ -248,17 +329,82 @@
     </div>
   </section>
 
-  <section class="close">
-    <div class="wrap">
-      <h2>Your next video, cut into shorts.</h2>
-      <a class="btn" href="#">Get free clips</a>
-    </div>
-  </section>
+  </div>
 </main>
 
 <footer><div class="wrap"><span>© Verticlip</span><span><a href="#">Terms</a><a href="#">Privacy</a></span></div></footer>
 
 <script>
+(() => {
+  const $ = (q, r = document) => r.querySelector(q), $$ = (q, r = document) => [...r.querySelectorAll(q)];
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+    set(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} },
+  };
+
+  // ----- tabs (hash routed, so each tab can be linked to)
+  const tabs = $$(".tab"), names = tabs.map((t) => t.dataset.tab);
+  function show(name, focus) {
+    if (!names.includes(name)) name = "home";
+    names.forEach((n) => { $("#p-" + n).hidden = n !== name; });
+    tabs.forEach((t) => { const on = t.dataset.tab === name; t.setAttribute("aria-selected", on); t.tabIndex = on ? 0 : -1; if (on && focus) t.focus(); });
+    document.title = (name === "home" ? "Verticlip" : $("#t-" + name).textContent.trim() + " · Verticlip");
+    scrollTo({ top: 0, behavior: "instant" });
+  }
+  tabs.forEach((t, i) => {
+    t.addEventListener("click", () => { location.hash = t.dataset.tab; });
+    t.addEventListener("keydown", (e) => {
+      const d = { ArrowRight: 1, ArrowLeft: -1 }[e.key]; if (e.key === "Home") return go(0); if (e.key === "End") return go(tabs.length - 1);
+      if (d) go((i + d + tabs.length) % tabs.length);
+      function go(n) { e.preventDefault(); location.hash = names[n]; show(names[n], true); }
+    });
+  });
+  addEventListener("hashchange", () => show(location.hash.slice(1)));
+  show(location.hash.slice(1));
+
+  // ----- theme: system (no attribute), light or dark
+  const root = document.documentElement;
+  function setTheme(mode, save) {
+    if (mode === "light" || mode === "dark") root.dataset.theme = mode; else { delete root.dataset.theme; mode = "system"; }
+    $$("[data-theme-set]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.themeSet === mode));
+    if (save) store.set("vc-theme", mode);
+  }
+  $$("[data-theme-set]").forEach((b) => b.addEventListener("click", () => setTheme(b.dataset.themeSet, true)));
+  setTheme(store.get("vc-theme") || "system");
+
+  // ----- settings popover
+  const setBtn = $("#setBtn"), pop = $("#settings");
+  const closePop = () => { pop.hidden = true; setBtn.setAttribute("aria-expanded", "false"); };
+  setBtn.addEventListener("click", () => { pop.hidden = !pop.hidden; setBtn.setAttribute("aria-expanded", String(!pop.hidden)); });
+  document.addEventListener("click", (e) => { if (!pop.hidden && !pop.contains(e.target) && !setBtn.contains(e.target)) closePop(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !pop.hidden) { closePop(); setBtn.focus(); } });
+
+  // ----- sign in / create account (prototype: front end only)
+  const dlg = $("#auth"), form = $("#authForm"); let mode = "signin";
+  function setMode(m) {
+    mode = m; const up = m === "signup";
+    $("#authTitle").textContent = up ? "Create your account" : "Sign in";
+    $("#authSubmit").textContent = up ? "Create account" : "Sign in";
+    $("#pw").autocomplete = up ? "new-password" : "current-password";
+    $("#swap").innerHTML = up ? `Already have an account? <button type="button" data-swap="signin">Sign in</button>` : `New to Verticlip? <button type="button" data-swap="signup">Create an account</button>`;
+  }
+  $("#swap").addEventListener("click", (e) => { const b = e.target.closest("[data-swap]"); if (b) setMode(b.dataset.swap); });
+  function openAuth(m) { closePop(); setMode(m); form.reset(); dlg.showModal(); $("[name=email]", form).focus(); }
+  $$("[data-auth]").forEach((el) => {
+    if (el.tagName === "FORM") el.addEventListener("submit", (e) => { e.preventDefault(); openAuth(el.dataset.auth); });
+    else el.addEventListener("click", () => openAuth(el.dataset.auth));
+  });
+  $("#authClose").addEventListener("click", () => dlg.close());
+  dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
+  function paint(email) {
+    root.classList.toggle("signed-in", !!email);
+    $("#avatar").textContent = email ? email[0] : ""; $("#whoEmail").textContent = email || "";
+  }
+  form.addEventListener("submit", (e) => { e.preventDefault(); const email = new FormData(form).get("email").trim(); store.set("vc-user", email); paint(email); dlg.close(); });
+  $("#signOut").addEventListener("click", () => { store.set("vc-user", null); paint(""); closePop(); });
+  paint(store.get("vc-user"));
+})();
+
 (() => {
   // Example data for the hero demo (the clips and captions are illustrative).
   const clips = [
