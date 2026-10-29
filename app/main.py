@@ -25,14 +25,14 @@ from starlette.responses import FileResponse, JSONResponse, RedirectResponse, Re
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from . import ai, auth, billing, config, db, janitor, mailer, media, pipeline, social, status, worker
+from . import ai, auth, billing, config, db, janitor, mailer, media, pipeline, social, status, trends, worker
 
 PARALLEL = {"free": 1, "pro": 3, "studio": 5}
 FILE_NAME = re.compile(r"^(clip_\d{2}\.(mp4|jpg)|thumb\.jpg)$")
 ID = re.compile(r"^[0-9a-f]{8,32}$")
 CSRF_HEADER = "x-verticlip"
 APP_PAGES = {"dashboard": "dashboard.html", "brand": "brand.html", "accounts": "accounts.html",
-             "billing": "billing.html", "settings": "settings.html"}
+             "billing": "billing.html", "settings": "settings.html", "trends": "trends.html"}
 
 
 # ---------- helpers ----------
@@ -132,7 +132,7 @@ def _tokens() -> dict:
 
 
 # Pages that should not appear in search results: accounts, the app itself, and one-time links.
-NOINDEX = {"login.html", "signup.html", "forgot.html", "reset.html", "verify.html", "project.html", "404.html",
+NOINDEX = {"trends.html", "login.html", "signup.html", "forgot.html", "reset.html", "verify.html", "project.html", "404.html",
            "dashboard.html", "brand.html", "accounts.html", "billing.html", "settings.html"}
 
 
@@ -150,7 +150,7 @@ def page(name: str, status: int = 200, extra: Optional[dict] = None, raw: Option
 
 # ---------- middleware ----------
 
-CSP = ("default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; "
+CSP = ("default-src 'self'; img-src 'self' data: blob: https://i.ytimg.com; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; "
        "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; "
        "connect-src 'self' https://challenges.cloudflare.com; font-src 'self'; object-src 'none'; base-uri 'self'; "
        "form-action 'self'; frame-ancestors 'none'")
@@ -392,6 +392,16 @@ async def remove_testimonial(request: Request):
 async def public_testimonials(request: Request):
     return JSONResponse({"testimonials": [{k: t[k] for k in ("name", "role", "quote")}
                                           for t in db.list_testimonials("approved", 6)]})
+
+
+async def trends_json(request: Request):
+    user = require_user(request)
+    plan = billing.plan_of(user)
+    owned = {a["external_id"] for a in db.list_accounts(user["id"]) if a["platform"] == "youtube"}
+    data = trends.for_plan(plan, request.query_params.get("region", "").upper(), owned, config.LINK_POLICY)
+    data["link_policy"] = config.LINK_POLICY
+    data["plan"] = user["plan"]
+    return JSONResponse(data)
 
 
 async def status_json(request: Request):
@@ -1051,6 +1061,7 @@ routes = [
     Route("/api/plans", plans),
     Route("/api/config", public_config),
     Route("/api/status", status_json),
+    Route("/api/trends", trends_json, methods=["GET"]),
     Route("/status", plain_page),
     Route("/api/testimonials", public_testimonials),
     Route("/api/testimonial", my_testimonial, methods=["GET"]),
@@ -1083,6 +1094,7 @@ async def lifespan(app):
     worker.start(pipeline.run_project)
     janitor.start()
     status.start()
+    trends.start()
     yield
 
 

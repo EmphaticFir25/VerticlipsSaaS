@@ -179,6 +179,7 @@
   .plan h3 em { font-style: normal; font-size: var(--step--1); font-weight: 600; color: var(--blue); }
   .price { font-size: var(--step-3); font-weight: 700; letter-spacing: -.05em; line-height: 1; }
   .price small { font-size: var(--step--1); font-weight: 500; letter-spacing: 0; color: var(--slate); margin-left: .3rem; }
+  .perm { color: var(--slate); font-size: var(--step--1); margin-top: -.6rem; min-height: 1.4em; }
   .plan ul { list-style: none; padding: 0; display: grid; gap: .55rem; color: var(--slate); font-size: var(--step--1); }
   .plan li { padding-left: 1.3rem; position: relative; }
   .plan li::before { content: ""; position: absolute; left: 0; top: .55em; width: .6rem; height: 2px; background: var(--blue); }
@@ -321,6 +322,7 @@
         <div><h3>Hook titles</h3><p>A short on-screen title for the first seconds, written from what is said in the clip.</p></div>
         <div><h3>Fill or fit</h3><p>Crop to full-screen 9:16, or keep the whole frame on a blurred background for wide shots and screen shares.</p></div>
         <div><h3>Brand kit</h3><p>Set caption style, color and logo once. Every new project uses them.</p></div>
+        <div><h3>Trend finder</h3><p>See which videos from major YouTube channels are taking off right now, ranked by views per hour. Use it for ideas and timing, and clip only what you own or have permission to use.</p></div>
         <div><h3>Publish to Shorts and TikTok</h3><p>Connect every channel you run. Each clip gets its own title, description and hashtags.</p></div>
         <div><h3>Clean cuts</h3><p>Clips start and end on whole sentences, never mid-word, and never overlap.</p></div>
       </div>
@@ -338,20 +340,23 @@
         <section class="plan" data-plan="free">
           <h3>Free</h3>
           <div class="price">$0<small>per month</small></div>
-          <ul><li>30 minutes a month</li><li>Up to 6 clips per video</li><li>Made with Verticlip mark</li></ul>
+          <p class="perm">&nbsp;</p>
+          <ul><li>30 minutes a month</li><li>Up to 6 clips per video</li><li>Trend finder: top 5 videos</li><li>Made with Verticlip mark</li></ul>
           <button class="btn quiet" type="button" data-auth="signup">Start free</button>
         </section>
-        <section class="plan pick" data-plan="pro">
-          <h3>Pro <em>Most popular</em></h3>
+        <section class="plan" data-plan="pro">
+          <h3>Pro</h3>
           <div class="price">$19<small>per month</small></div>
-          <ul><li>600 minutes a month</li><li>Up to 15 clips per video</li><li>Your logo, no watermark</li></ul>
-          <button class="btn" type="button" data-auth="signup">Choose Pro</button>
+          <p class="perm">3.2&cent; per minute</p>
+          <ul><li>600 minutes a month</li><li>Up to 15 clips per video</li><li>Trend finder: top 20 videos</li><li>Your logo, no watermark</li></ul>
+          <button class="btn quiet" type="button" data-auth="signup">Choose Pro</button>
         </section>
-        <section class="plan" data-plan="studio">
-          <h3>Studio</h3>
+        <section class="plan pick" data-plan="studio">
+          <h3>Studio <em>Best value</em></h3>
           <div class="price">$49<small>per month</small></div>
-          <ul><li>1,200 minutes a month</li><li>Up to 25 clips per video</li><li>Your logo, no watermark</li></ul>
-          <button class="btn quiet" type="button" data-auth="signup">Choose Studio</button>
+          <p class="perm">2.0&cent; per minute</p>
+          <ul><li>2,400 minutes a month</li><li>Up to 25 clips per video</li><li>Trend finder: top 50 videos in 4 regions</li><li>Your logo, no watermark</li></ul>
+          <button class="btn" type="button" data-auth="signup">Choose Studio</button>
         </section>
       </div>
     </div>
@@ -508,7 +513,9 @@
     $$("[data-plan]").forEach((el) => {
       const p = plans[el.dataset.plan]; if (!p) return;
       $(".price", el).innerHTML = `$${p.price}<small>per month</small>`;
+      $(".perm", el).textContent = p.price ? `${(p.price / p.minutes * 100).toFixed(1)}\u00a2 per minute` : "";
       $("ul", el).innerHTML = [`${p.minutes.toLocaleString()} minutes a month`, `Up to ${p.max_clips} clips per video`,
+        `Trend finder: top ${p.trend_items} videos${p.trend_items >= 50 ? " in 4 regions" : ""}`,
         p.brand_logo ? "Your logo, no watermark" : "Made with Verticlip mark"].map((t) => `<li>${t}</li>`).join("");
     });
   }).catch(() => {});

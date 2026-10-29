@@ -90,6 +90,10 @@ def _components(now: float) -> list[dict]:
     else:
         add("Email", "degraded", "Not configured: confirmation and reset emails are not being delivered")
 
+    from . import trends
+    if trends.configured():
+        add("Trend finder", *trends.health(now))
+
     try:
         usage = shutil.disk_usage(config.DATA_DIR if config.DATA_DIR.exists() else config.DATA_DIR.parent)
         free = usage.free / usage.total

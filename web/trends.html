@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Trends · Verticlip</title>
+<link rel="icon" href="/assets/verticlip-logo.svg" />
+<link rel="preload" href="/static/fonts/SchibstedGrotesk-latin.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="stylesheet" href="/static/fonts/fonts.css" />
+<link rel="stylesheet" href="/static/app.css" />
+<script>try{var t=localStorage.getItem("vc-theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
+<style>
+  .tgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 18px; }
+  .tcard { display: flex; flex-direction: column; overflow: hidden; }
+  .tcard .th { position: relative; aspect-ratio: 16 / 9; background: var(--surface-3); }
+  .tcard .th img { width: 100%; height: 100%; object-fit: cover; }
+  .tcard .rank { position: absolute; top: 10px; left: 10px; min-width: 28px; height: 28px; padding: 0 8px; border-radius: 999px; display: grid; place-items: center; background: var(--text); color: var(--bg); font-weight: 700; font-size: 13px; }
+  .tcard .body { padding: 16px; display: grid; gap: 10px; flex: 1; align-content: start; }
+  .tcard h3 { font-size: 16px; line-height: 1.25; letter-spacing: -.01em; }
+  .tcard .meta { color: var(--muted); font-size: 13.5px; }
+  .stats { display: flex; gap: 8px; flex-wrap: wrap; }
+  .stats span { padding: 4px 10px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  .stats span.hot { background: rgba(var(--volt-rgb), .12); border-color: rgba(var(--volt-rgb), .35); color: var(--text); }
+  .tcard .acts { display: flex; gap: 8px; margin-top: auto; padding-top: 4px; flex-wrap: wrap; }
+  .tools { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 18px; }
+  .tools .muted { font-size: 13.5px; }
+</style>
+</head>
+<body data-shell="app" data-page="trends">
+<main>
+  <header class="page-head"><div><h1>Trending now</h1><p>Videos from major YouTube channels that are taking off, ranked by views per hour.</p></div></header>
+  <p class="note" style="margin-bottom:18px">Use this for ideas and timing. Only clip a video you own or have the creator's permission to use, because many creators run their own clipping programs. Trend data comes from YouTube's API.</p>
+  <div class="tools" id="tools" hidden>
+    <label class="sr" for="region">Region</label>
+    <select class="select-sm" id="region"></select>
+    <span class="muted" id="updated"></span>
+  </div>
+  <div id="state"></div>
+  <div class="tgrid" id="grid"></div>
+  <p class="muted" id="upsell" hidden style="margin-top:22px">Your plan shows the top <b id="lim"></b>. <a href="/billing" style="text-decoration:underline">Upgrade</a> to see more videos, and Studio adds four regions.</p>
+</main>
+<script src="/static/app.js"></script>
+<script>
+  const { $, api, esc, toast, timeAgo } = VC;
+  const fmt = (n) => n >= 1e6 ? (n / 1e6).toFixed(n >= 1e7 ? 0 : 1) + "M" : n >= 1e3 ? (n / 1e3).toFixed(n >= 1e5 ? 0 : 1) + "K" : String(n);
+  const age = (h) => h < 48 ? `${Math.round(h)}h ago` : `${Math.round(h / 24)}d ago`;
+  const dur = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  async function load(region = "") {
+    try {
+      const d = await api("/api/trends" + (region ? `?region=${encodeURIComponent(region)}` : ""));
+      if (!d.configured) { $("#state").innerHTML = `<div class="empty"><h3>The trend finder isn't set up yet</h3><p>The site operator needs to add a YouTube API key.</p></div>`; return; }
+      if (!d.items.length) { $("#state").innerHTML = `<div class="empty"><h3>Collecting trends</h3><p>The first results appear a minute after the server starts. Check back soon.</p></div>`; $("#grid").innerHTML = ""; return; }
+      $("#state").innerHTML = "";
+      $("#tools").hidden = false;
+      $("#region").innerHTML = d.regions.map((r) => `<option ${r === d.region ? "selected" : ""}>${esc(r)}</option>`).join("");
+      $("#region").hidden = d.regions.length < 2;
+      $("#updated").textContent = d.updated ? "Updated " + timeAgo(d.updated) : "";
+      $("#grid").innerHTML = d.items.map((v, i) => {
+        const hot = v.views_per_hour >= 50000;
+        const clip = v.clippable ? `<a class="btn sm" href="/dashboard?url=${encodeURIComponent(v.url)}">Clip this</a>`
+          : `<button class="btn sm" disabled title="Links are limited to channels you have connected">Not your channel</button>`;
+        return `<article class="card tcard"><div class="th"><span class="rank">${i + 1}</span><img src="${esc(v.thumbnail)}" alt="" loading="lazy" referrerpolicy="no-referrer" /></div>
+          <div class="body"><h3>${esc(v.title)}</h3>
+          <div class="meta">${esc(v.channel)}${v.subscribers ? ` · ${fmt(v.subscribers)} subscribers` : ""}<br>${age(v.age_hours)} · ${dur(v.duration)}</div>
+          <div class="stats"><span class="${hot ? "hot" : ""}">${fmt(v.views_per_hour)} views/hour</span><span>${fmt(v.views)} views</span><span>${(v.engagement * 100).toFixed(1)}% engaged</span></div>
+          <div class="acts">${clip}<a class="btn ghost sm" href="${esc(v.url)}" target="_blank" rel="noopener noreferrer">Watch on YouTube</a></div></div></article>`;
+      }).join("");
+      $("#upsell").hidden = !d.has_more; $("#lim").textContent = d.limit + " videos";
+    } catch (err) { toast(err.message, true); }
+  }
+  $("#region").onchange = (e) => load(e.target.value);
+  load();
+</script>
+</body>
+</html>

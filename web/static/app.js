@@ -7,6 +7,7 @@
 
   const ICON = {
     logo: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="6.5" y="2.5" width="11" height="19" rx="3" stroke="currentColor" stroke-width="2"/><path d="M10.5 8.5v7l5-3.5z" fill="currentColor"/></svg>`,
+    trend: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>`,
     plus: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>`,
     grid: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/></svg>`,
     brush: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 14.5l7.8-9.6a2 2 0 0 1 3 2.6l-9.4 8"/><path d="M8 14c-2.5 0-4 1.7-4 4 0 1-.6 2-2 2 2 1.5 7 1.5 8.4-1.4.8-1.6-.4-4.6-2.4-4.6z"/></svg>`,
@@ -76,6 +77,7 @@
     ["dashboard", "/dashboard", "Projects", ICON.grid],
     ["brand", "/brand", "Brand kit", ICON.brush],
     ["accounts", "/accounts", "Social accounts", ICON.link],
+    ["trends", "/trends", "Trends", ICON.trend],
     ["billing", "/billing", "Plan & billing", ICON.card],
     ["settings", "/settings", "Settings", ICON.gear],
   ];

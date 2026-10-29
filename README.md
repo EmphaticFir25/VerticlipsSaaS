@@ -27,6 +27,7 @@ with it at runtime.
 | Jobs | Persistent queue in SQLite, worker threads, restart-safe (in-flight projects re-run), cancel and retry |
 | Safety | Anti-forgery header on every write, write rate limits, bot check (Turnstile), disposable-email block, private-network links refused, upload size and type checks, Content-Security-Policy and other security headers |
 | Privacy and compliance | Self-serve data export and account deletion, automatic data retention, age and terms consent, copyright/abuse reports with a three-strike takedown tool, self-hosted fonts, Terms/Privacy/Copyright/Refund/Support pages filled from your settings |
+| Trend finder | Trending videos from major YouTube channels (official YouTube Data API), ranked by views per hour, with one-click "Clip this" that goes through the same rights confirmation and link policy. List size and regions depend on the plan |
 | Operations | Encrypted nightly backups with verify and restore, optional Sentry, `/healthz`, `security.txt`, `robots.txt` and `sitemap.xml` |
 | UI | Landing page with pricing, dashboard, project page with ranked clips and score breakdowns, brand kit with live preview, social accounts, billing, settings |
 

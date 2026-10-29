@@ -46,6 +46,12 @@ SIGNUPS_PER_HOUR = _int("SIGNUPS_PER_HOUR", 10)   # per network address
 # channel the customer has connected (proved by Google sign-in); everything else must be uploaded as a file.
 LINK_POLICY = _env("LINK_POLICY", "attest").lower() if _env("LINK_POLICY", "attest").lower() in ("attest", "owned") else "attest"
 
+# ---------- trend finder (YouTube Data API v3) ----------
+YOUTUBE_API_KEY = _env("YOUTUBE_API_KEY")
+TRENDS_REGIONS = [r.strip().upper() for r in _env("TRENDS_REGIONS", "US,GB,CA,AU").split(",") if r.strip()]
+TRENDS_MIN_SUBSCRIBERS = _int("TRENDS_MIN_SUBSCRIBERS", 500000)      # "mainstream" creators only
+TRENDS_REFRESH_MINUTES = _int("TRENDS_REFRESH_MINUTES", 30)
+
 # ---------- how long we keep customer data (0 turns a rule off) ----------
 SOURCE_RETENTION_DAYS = _int("SOURCE_RETENTION_DAYS", 14)       # the uploaded or downloaded original video
 PROJECT_RETENTION_DAYS = _int("PROJECT_RETENTION_DAYS", 90)     # clips, transcript, thumbnails
@@ -113,12 +119,13 @@ STRIPE_PRICE_STUDIO = _env("STRIPE_PRICE_STUDIO")
 
 # Monthly allowances. Minutes are minutes of source video processed.
 PLANS = {
+    # Studio is priced to be the best value: about 2 cents a minute against 3.2 for Pro, plus the full trend finder.
     "free": {"name": "Free", "price": 0, "minutes": _int("FREE_MINUTES", 30),
-             "max_clips": 6, "watermark": True, "brand_logo": False},
+             "max_clips": 6, "watermark": True, "brand_logo": False, "trend_items": 5},
     "pro": {"name": "Pro", "price": _int("PRO_PRICE_USD", 19), "minutes": _int("PRO_MINUTES", 600),
-            "max_clips": 15, "watermark": False, "brand_logo": True},
-    "studio": {"name": "Studio", "price": _int("STUDIO_PRICE_USD", 49), "minutes": _int("STUDIO_MINUTES", 1200),
-               "max_clips": 25, "watermark": False, "brand_logo": True},
+            "max_clips": 15, "watermark": False, "brand_logo": True, "trend_items": 20},
+    "studio": {"name": "Studio", "price": _int("STUDIO_PRICE_USD", 49), "minutes": _int("STUDIO_MINUTES", 2400),
+               "max_clips": 25, "watermark": False, "brand_logo": True, "trend_items": 50},
 }
 
 

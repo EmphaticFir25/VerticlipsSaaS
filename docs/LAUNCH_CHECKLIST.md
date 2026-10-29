@@ -17,6 +17,7 @@ The code covers the engineering side. These items need you, an account, or a pro
 
 ## Platforms
 - [ ] **Google:** submit the OAuth consent screen for verification for the `youtube.upload` scope. Until then only listed test users can connect. Your privacy policy must include the Google API Services "Limited Use" wording if you keep the YouTube section.
+- [ ] **Trend finder:** create a YouTube Data API key (see `.env.example`), set `YOUTUBE_API_KEY`, and keep the "YouTube API Services" wording in your Terms and Privacy pages. Showing trending videos is fine; copying or clipping someone else's video without permission is not, so keep the rights confirmation and consider `LINK_POLICY=owned`.
 - [ ] **TikTok:** pass the Content Posting API audit for direct posting. Until then uploads go to the creator's inbox.
 
 ## Email

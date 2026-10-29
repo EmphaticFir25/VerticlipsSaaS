@@ -40,6 +40,7 @@
     "Animated captions, fill and fit layouts",
     p.watermark ? "Small “Made with Verticlip” mark" : "No watermark",
     ...(p.brand_logo ? ["Your logo on every clip"] : []),
+    `Trend finder: top ${p.trend_items} videos${p.trend_items >= 50 ? " in 4 regions" : ""}`,
     "Publish to YouTube and TikTok",
   ];
 
@@ -62,10 +63,11 @@
         else if (!me.billing) action = `<button class="btn" disabled>Coming soon</button>`;
         else if (me.user.has_subscription) action = `<button class="btn" data-portal>Switch to ${esc(p.name)}</button>`;
         else action = `<button class="btn" data-plan="${key}">Upgrade to ${esc(p.name)}</button>`;
-        return `<section class="card plan${key === "pro" ? " featured" : ""}">
-          ${key === "pro" ? `<span class="pill run tag">Most popular</span>` : ""}
+        return `<section class="card plan${key === "studio" ? " featured" : ""}">
+          ${key === "studio" ? `<span class="pill run tag">Best value</span>` : ""}
           <h3>${esc(p.name)}</h3>
           <div class="price">$${p.price}<small> / month</small></div>
+          <p class="muted" style="margin-top:-6px;font-size:13.5px;min-height:1.4em">${p.price ? (p.price / p.minutes * 100).toFixed(1) + "\u00a2 per minute" : ""}</p>
           <ul>${FEATURES(p).map((f) => `<li>${esc(f)}</li>`).join("")}</ul>
           ${action}
         </section>`;
