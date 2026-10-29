@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import math
 import time
 from pathlib import Path
@@ -10,6 +11,8 @@ from typing import Callable
 import requests
 
 from . import config
+
+log = logging.getLogger("verticlip.ai")
 
 RETRY_STATUS = {408, 409, 429, 500, 502, 503, 504, 529}
 
@@ -173,11 +176,17 @@ def claude_tool_call(system: str, user: str, tool: dict, max_tokens: int = 4096)
         "tool_choice": {"type": "tool", "name": tool["name"]},
         "messages": [{"role": "user", "content": user}],
     }
+    if config.ANTHROPIC_EFFORT:
+        body["output_config"] = {"effort": config.ANTHROPIC_EFFORT}
     headers = {"x-api-key": config.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01",
                "content-type": "application/json"}
     resp = _post_with_retry(lambda: requests.post(config.ANTHROPIC_URL, headers=headers,
                                                   data=json.dumps(body), timeout=300), "Claude")
-    for block in resp.json().get("content", []):
+    data = resp.json()
+    usage = data.get("usage") or {}
+    log.info("claude usage model=%s input_tokens=%s output_tokens=%s", data.get("model", config.ANTHROPIC_MODEL),
+             usage.get("input_tokens"), usage.get("output_tokens"))
+    for block in data.get("content", []):
         if block.get("type") == "tool_use" and block.get("name") == tool["name"]:
             return block.get("input") or {}
     raise AIError("Claude did not return clip data.")

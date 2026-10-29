@@ -41,6 +41,8 @@ ALLOW_SIGNUPS = _env("ALLOW_SIGNUPS", "true").lower() != "false"
 # ---------- cloud AI ----------
 ANTHROPIC_API_KEY = _env("ANTHROPIC_API_KEY")
 ANTHROPIC_MODEL = _env("ANTHROPIC_MODEL", "claude-haiku-5-5")
+# Thinking depth for Haiku 5.5 (low|medium|high|xhigh|max). Empty sends no effort setting.
+ANTHROPIC_EFFORT = _env("ANTHROPIC_EFFORT", "low")
 ANTHROPIC_URL = _env("ANTHROPIC_URL", "https://api.anthropic.com/v1/messages")
 
 # Any OpenAI-compatible transcription endpoint with word timestamps (OpenAI whisper-1, Groq, etc.).
