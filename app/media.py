@@ -76,7 +76,8 @@ def remote_info(url: str) -> dict:
     except ValueError:
         raise MediaError("Could not read that link.")
     return {"title": str(info.get("title") or "")[:200], "duration": float(info.get("duration") or 0),
-            "is_live": bool(info.get("is_live"))}
+            "is_live": bool(info.get("is_live")), "extractor": str(info.get("extractor_key") or ""),
+            "channel_id": str(info.get("channel_id") or "")}
 
 
 def download(url: str, out_dir: Path) -> Path:

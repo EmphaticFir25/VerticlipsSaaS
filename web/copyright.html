@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Copyright policy · Verticlip</title>
+<meta name="description" content="How to report copyright infringement or abuse on Verticlip." />
+<link rel="icon" href="/assets/verticlip-logo.svg" />
+<link rel="preload" href="/static/fonts/SchibstedGrotesk-latin.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="stylesheet" href="/static/fonts/fonts.css" />
+<link rel="stylesheet" href="/static/app.css" />
+<style>
+  .doc { max-width: 760px; margin: 0 auto; padding: 40px 22px 90px; }
+  .doc .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
+  .doc h1 { font-size: 38px; margin-bottom: 6px; }
+  .doc h2 { font-size: 20px; margin: 34px 0 10px; }
+  .doc p, .doc li { color: var(--muted); }
+  .doc p + p { margin-top: 10px; }
+  .doc ul { padding-left: 20px; display: grid; gap: 6px; }
+  .doc p a, .doc li a, .doc td a { color: var(--volt); text-decoration: underline; }
+  .doc table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 10px; }
+  .doc th, .doc td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); color: var(--muted); }
+  .doc th { color: var(--text); font-weight: 600; }
+  .doc form .field { margin-top: 14px; }
+  .doc .check { display: flex; gap: 10px; align-items: flex-start; margin-top: 14px; color: var(--muted); }
+  .doc .note-box { padding: 14px 16px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); margin-top: 14px; }
+</style>
+<script>try{var t=localStorage.getItem("vc-theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+<div class="doc">
+  <div class="top"><a class="brand" href="/" style="padding:0" id="b"></a><nav class="muted" style="display:flex;gap:16px;font-weight:600;font-size:14px;flex-wrap:wrap"><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/copyright">Copyright</a><a href="/support">Support</a><a href="/status">Status</a></nav></div>
+  <h1>Copyright policy</h1>
+  <p class="faint">Last updated: October 29, 2026</p>
+
+  <p>{{LEGAL_NAME}} respects the rights of creators and expects customers to do the same. Verticlip only processes videos that the customer confirms they own or have permission to use.</p>
+  <h2>Reporting infringement</h2>
+  <p>If you believe a clip created or hosted on Verticlip infringes your copyright, send a notice using the form below, or email our designated agent at <a href="mailto:{{ABUSE_EMAIL}}">{{ABUSE_EMAIL}}</a>. Please include:</p>
+  <ul>
+    <li>the work you say is infringed, and where we can see it;</li>
+    <li>the link to the clip on Verticlip (for example the <code>/files/…</code> address);</li>
+    <li>your name and an email address where we can reach you;</li>
+    <li>a statement that you believe in good faith that the use is not authorised by the owner, its agent or the law; and</li>
+    <li>a statement that the information is accurate and that you are the owner or authorised to act for the owner. In the US, this is made under penalty of perjury.</li>
+  </ul>
+  <p>We review notices promptly, remove content that appears to infringe, and tell the customer who posted it. Designated agent: {{LEGAL_NAME}}, {{LEGAL_ADDRESS}}, <a href="mailto:{{ABUSE_EMAIL}}">{{ABUSE_EMAIL}}</a>.</p>
+  <h2>Counter-notice</h2>
+  <p>If your content was removed and you believe that was a mistake, write to <a href="mailto:{{ABUSE_EMAIL}}">{{ABUSE_EMAIL}}</a> with your name, the removed content, a statement that you believe in good faith it was removed by mistake or misidentification, and your consent to the courts of your country. We may restore content if the person who reported it does not take legal action within 10 business days.</p>
+  <h2>Repeat infringers</h2>
+  <p>Each upheld notice against a customer is a strike. After three strikes we suspend the account and remove its content. Serious or deliberate infringement can lead to suspension sooner.</p>
+  <h2>Report a copyright problem or other abuse</h2>
+  <form id="rep" novalidate>
+    <div class="field"><label for="kind">What are you reporting?</label>
+      <select class="input" id="kind"><option value="copyright">Copyright infringement</option><option value="abuse">Other abuse or illegal content</option></select></div>
+    <div class="field"><label for="url">Link to the clip or page</label><input class="input" id="url" placeholder="{{PUBLIC_BASE}}/files/…" required /></div>
+    <div class="field"><label for="name">Your name</label><input class="input" id="name" autocomplete="name" /></div>
+    <div class="field"><label for="email">Your email</label><input class="input" id="email" type="email" autocomplete="email" required /></div>
+    <div class="field"><label for="details">What is the problem?</label><textarea class="input" id="details" rows="5" style="height:auto;padding:12px 14px" required></textarea></div>
+    <label class="check cr"><input type="checkbox" id="gf" /><span>I believe in good faith that this use is not authorised by the copyright owner, its agent, or the law.</span></label>
+    <label class="check cr"><input type="checkbox" id="acc" /><span>The information in this notice is accurate, and I am the copyright owner or authorised to act for the owner.</span></label>
+    <div id="capBox" style="margin-top:14px"></div>
+    <button class="btn" id="go" style="margin-top:18px">Send report</button>
+    <p class="form-err" id="err" role="alert"></p>
+  </form>
+  <p id="done" class="note-box" hidden>Thanks. We received your report and will review it.</p>
+
+</div>
+<script src="/static/app.js"></script>
+<script>VC.$("#b").innerHTML = `${VC.ICON.logo}<span>Verticlip</span>`;</script>
+<script>
+  const { $, api } = VC;
+  let cap = { token: () => "", reset() { } };
+  VC.captcha($("#capBox")).then((c) => { cap = c; });
+  const show = () => { const c = $("#kind").value === "copyright"; $$(".cr").forEach((el) => el.hidden = !c); };
+  const $$ = (s) => [...document.querySelectorAll(s)];
+  $("#kind").onchange = show; show();
+  $("#rep").onsubmit = async (e) => {
+    e.preventDefault(); $("#err").textContent = "";
+    const btn = $("#go"); btn.disabled = true;
+    try {
+      await api("/api/report", { method: "POST", body: { kind: $("#kind").value, url: $("#url").value, name: $("#name").value, email: $("#email").value, details: $("#details").value, good_faith: $("#gf").checked, accurate: $("#acc").checked, captcha: cap.token() } });
+      $("#rep").hidden = true; $("#done").hidden = false;
+    } catch (err) { $("#err").textContent = err.message; btn.disabled = false; cap.reset(); }
+  };
+</script>
+</body>
+</html>

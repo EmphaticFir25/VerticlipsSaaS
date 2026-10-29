@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Create your account · Verticlip</title>
 <link rel="icon" href="/assets/verticlip-logo.svg" />
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Hanken+Grotesk:wght@400;500;600;700&family=Poppins:wght@700;800&display=swap" rel="stylesheet" />
+<link rel="preload" href="/static/fonts/SchibstedGrotesk-latin.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="stylesheet" href="/static/fonts/fonts.css" />
 <link rel="stylesheet" href="/static/app.css" />
+<script>try{var t=localStorage.getItem("vc-theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
 <div class="auth">
@@ -20,10 +20,11 @@
       <div class="field"><label for="name">Name</label><input class="input" id="name" autocomplete="name" maxlength="80" /></div>
       <div class="field"><label for="email">Email</label><input class="input" id="email" type="email" autocomplete="email" required /></div>
       <div class="field"><label for="password">Password</label><input class="input" id="password" type="password" autocomplete="new-password" minlength="8" required /></div>
+      <label class="check" style="display:flex;gap:10px;align-items:flex-start;margin-top:16px;font-size:13.5px;color:var(--muted)"><input type="checkbox" id="agree" style="margin-top:3px" /><span>I am {{MIN_AGE}} or older and I accept the <a href="/terms" style="text-decoration:underline">Terms</a> and <a href="/privacy" style="text-decoration:underline">Privacy Policy</a>.</span></label>
+      <div id="capBox" style="margin-top:14px"></div>
       <button class="btn lg" id="submit">Create account</button>
       <p class="form-err" id="err" role="alert"></p>
-      <p class="faint" style="font-size:12.5px;margin-top:14px;text-align:center">By signing up you agree to the <a href="/terms" style="text-decoration:underline">Terms</a> and <a href="/privacy" style="text-decoration:underline">Privacy Policy</a>.</p>
-      <p class="alt">Already have an account? <a href="/login" id="altLink">Log in</a></p>
+            <p class="alt">Already have an account? <a href="/login" id="altLink">Log in</a></p>
     </form>
   </div>
   <div class="art" aria-hidden="true">
@@ -40,14 +41,17 @@
   $("#brandLink").innerHTML = `${ICON.logo}<span>Verticlip</span>`;
   const next = safeNext(new URLSearchParams(location.search).get("next"));
   if (next !== "/dashboard") $("#altLink").href += "?next=" + encodeURIComponent(next);
+  let cap = { token: () => "", reset() { } };
+  VC.captcha($("#capBox")).then((c) => { cap = c; });
   $("#form").onsubmit = async (e) => {
     e.preventDefault();
     $("#err").textContent = "";
+    if (!$("#agree").checked) { $("#err").textContent = "Please confirm your age and accept the Terms and Privacy Policy."; return; }
     const btn = $("#submit"); btn.disabled = true;
     try {
-      await api("/api/auth/signup", { method: "POST", body: { name: $("#name").value, email: $("#email").value, password: $("#password").value } });
+      await api("/api/auth/signup", { method: "POST", body: { name: $("#name").value, email: $("#email").value, password: $("#password").value, agree: true, captcha: cap.token() } });
       location.href = next;
-    } catch (err) { $("#err").textContent = err.message; btn.disabled = false; }
+    } catch (err) { $("#err").textContent = err.message; btn.disabled = false; cap.reset(); }
   };
 </script>
 </body>

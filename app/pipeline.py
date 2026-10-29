@@ -7,7 +7,7 @@ import uuid
 from pathlib import Path
 from typing import Callable, Optional
 
-from . import ai, billing, config, db, media
+from . import ai, billing, config, db, mailer, media
 
 DEFAULT_SETTINGS = {
     "min_len": 20, "max_len": 60, "max_clips": 8,
@@ -126,6 +126,7 @@ def run_project(project_id: str,
 
         db.update_project(project_id, status="done", stage="done", progress=100,
                           message=f"{len(moments)} clips ready")
+        notify_finished(user["id"], project_id, project.get("title") or "your video", True)
     except Cancelled:
         if charged:
             db.add_minutes(user["id"], -charged)
@@ -138,6 +139,18 @@ def run_project(project_id: str,
             else "Something went wrong while processing this video."
         print(f"[project {project_id}] failed: {type(exc).__name__}: {exc}")
         db.update_project(project_id, status="error", message=msg)
+        notify_finished(user["id"], project_id, project.get("title") or "your video", False, msg)
+
+
+def notify_finished(user_id: str, project_id: str, title: str, ok: bool, message: str = "") -> None:
+    """Tell the customer a project is done, unless they turned the emails off. Never fails the project."""
+    try:
+        user = db.get_user(user_id)
+        if not user or not user.get("notify_email", 1):
+            return
+        mailer.send(user["email"], *mailer.finished_email(title, f"{config.PUBLIC_BASE}/project/{project_id}", ok, message))
+    except Exception as exc:
+        print(f"[mail] could not send the finished notice for {project_id}: {exc}")
 
 
 def render_one(project_id: str, user_id: str, work: Path, source: Path, idx: int, m: dict,

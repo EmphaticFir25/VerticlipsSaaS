@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>System status · Verticlip</title>
+<meta name="description" content="Live status of Verticlip: processing, database, AI services and email, with 30-day history." />
+<link rel="icon" href="/assets/verticlip-logo.svg" />
+<link rel="preload" href="/static/fonts/SchibstedGrotesk-latin.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="stylesheet" href="/static/fonts/fonts.css" />
+<link rel="stylesheet" href="/static/app.css" />
+<style>
+  .doc { max-width: 760px; margin: 0 auto; padding: 40px 22px 90px; }
+  .doc .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
+  .doc h1 { font-size: 38px; margin-bottom: 6px; }
+  .doc h2 { font-size: 20px; margin: 34px 0 10px; }
+  .doc p, .doc li { color: var(--muted); }
+  .doc p + p { margin-top: 10px; }
+  .doc ul { padding-left: 20px; display: grid; gap: 6px; }
+  .doc p a, .doc li a, .doc td a { color: var(--volt); text-decoration: underline; }
+  .doc table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 10px; }
+  .doc th, .doc td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); color: var(--muted); }
+  .doc th { color: var(--text); font-weight: 600; }
+  .doc form .field { margin-top: 14px; }
+  .doc .check { display: flex; gap: 10px; align-items: flex-start; margin-top: 14px; color: var(--muted); }
+  .doc .note-box { padding: 14px 16px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); margin-top: 14px; }
+  .state-banner { display: flex; align-items: center; gap: 12px; padding: 18px 20px; border-radius: 16px; border: 1px solid var(--line); background: var(--surface); margin-top: 22px; font-weight: 600; font-size: 18px; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; flex: none; background: var(--faint); }
+  .s-operational .dot, .dot.operational { background: var(--green); }
+  .s-degraded .dot, .dot.degraded { background: var(--amber); }
+  .s-outage .dot, .dot.outage { background: var(--red); }
+  .s-maintenance .dot, .dot.maintenance { background: var(--volt); }
+  .comp { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 4px; border-bottom: 1px solid var(--line); }
+  .comp b { color: var(--text); font-weight: 600; }
+  .comp .d { color: var(--muted); font-size: 14px; }
+  .comp .lbl { display: flex; align-items: center; gap: 8px; white-space: nowrap; font-size: 14px; color: var(--muted); }
+  .bars { display: flex; gap: 3px; margin-top: 12px; }
+  .bars i { flex: 1; height: 34px; border-radius: 3px; background: var(--line-2); }
+  .bars i.operational { background: var(--green); } .bars i.degraded { background: var(--amber); }
+  .bars i.outage { background: var(--red); } .bars i.maintenance { background: var(--volt); }
+  .inc { padding: 14px 16px; border-radius: 12px; border: 1px solid var(--line); margin-top: 12px; background: var(--surface); }
+  .inc h3 { font-size: 16px; } .inc p { margin-top: 6px; font-size: 14px; }
+</style>
+<script>try{var t=localStorage.getItem("vc-theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+<div class="doc">
+  <div class="top"><a class="brand" href="/" style="padding:0" id="b"></a><nav class="muted" style="display:flex;gap:16px;font-weight:600;font-size:14px;flex-wrap:wrap"><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/copyright">Copyright</a><a href="/support">Support</a><a href="/status">Status</a></nav></div>
+  <h1>System status</h1>
+  <p class="faint" id="checked">Checking…</p>
+  <div class="state-banner" id="banner" role="status"><span class="dot"></span><span id="bannerText">Checking…</span></div>
+  <div id="incidents"></div>
+  <h2>Services</h2>
+  <div id="comps"></div>
+  <h2>Last 30 days</h2>
+  <p class="faint" id="uptime"></p>
+  <div class="bars" id="bars" aria-label="Daily status for the last 30 days"></div>
+  <p class="faint" style="margin-top:8px;font-size:13px">Grey days have no record, for example before the service started. This page is served by Verticlip itself, so if it won't load, the site is down. Problems? <a href="/support">Contact support</a>.</p>
+</div>
+<script src="/static/app.js"></script>
+<script>
+  const { $, esc } = VC;
+  $("#b").innerHTML = `${VC.ICON.logo}<span>Verticlip</span>`;
+  const LABEL = { operational: "Operational", degraded: "Degraded", outage: "Outage", maintenance: "Maintenance" };
+  const HEAD = { operational: "All systems operational", degraded: "Some systems are degraded", outage: "We're having an outage", maintenance: "Scheduled maintenance" };
+  const when = (t) => new Date(t * 1000).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  async function load() {
+    try {
+      const s = await (await fetch("/api/status", { cache: "no-store" })).json();
+      $("#banner").className = "state-banner s-" + s.overall; $("#bannerText").textContent = HEAD[s.overall];
+      $("#checked").textContent = "Updated " + when(s.checked_at) + ". Refreshes every 30 seconds.";
+      $("#incidents").innerHTML = s.incidents.map((i) => `<div class="inc"><h3><span class="dot ${i.resolved ? "operational" : i.level}" style="display:inline-block;margin-right:8px"></span>${esc(i.title)} <span class="faint" style="font-weight:400;font-size:13px">${i.resolved ? "Resolved " + when(i.resolved) : "Since " + when(i.started)}</span></h3>${i.body ? `<p class="muted">${esc(i.body)}</p>` : ""}</div>`).join("");
+      $("#comps").innerHTML = s.components.map((c) => `<div class="comp"><div><b>${esc(c.name)}</b><div class="d">${esc(c.detail)}</div></div><span class="lbl"><span class="dot ${c.state}"></span>${LABEL[c.state]}</span></div>`).join("");
+      $("#bars").innerHTML = s.history.map((h) => `<i class="${h.level === "nodata" ? "" : h.level}" title="${new Date(h.day * 1000).toLocaleDateString()}: ${h.level === "nodata" ? "no data" : LABEL[h.level]}"></i>`).join("");
+      $("#uptime").textContent = s.uptime_30d == null ? "Not enough history yet." : s.uptime_30d + "% of recorded checks were fully operational.";
+    } catch { $("#bannerText").textContent = "Can't reach the status service right now."; }
+  }
+  load(); setInterval(load, 30000);
+</script>
+</body>
+</html>

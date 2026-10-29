@@ -3,207 +3,568 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Verticlip · Long videos in, viral shorts out</title>
-<meta name="description" content="Paste a long video. Verticlip finds the best moments, scores them for virality, adds animated captions and publishes to YouTube Shorts and TikTok." />
+<title>{{SEO_TITLE}}</title>
+<meta name="description" content="{{SEO_DESC}}" />
+<link rel="canonical" href="{{PUBLIC_BASE}}{{SEO_PATH}}" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="Verticlip" />
+<meta property="og:title" content="{{SEO_TITLE}}" />
+<meta property="og:description" content="{{SEO_DESC}}" />
+<meta property="og:url" content="{{PUBLIC_BASE}}{{SEO_PATH}}" />
+<meta property="og:image" content="{{PUBLIC_BASE}}/assets/og.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta name="twitter:card" content="summary_large_image" />
+<script type="application/ld+json">{{JSONLD}}</script>
 <link rel="icon" href="/assets/verticlip-logo.svg" />
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Hanken+Grotesk:wght@400;500;600;700&family=Poppins:wght@700;800&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="/static/app.css" />
+<link rel="preload" href="/static/fonts/SchibstedGrotesk-latin.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="stylesheet" href="/static/fonts/fonts.css" />
 <style>
-  body { overflow-x: hidden; }
-  .wrap { width: min(1180px, 100% - 40px); margin: 0 auto; }
-  .hero > div { min-width: 0; }
-  .top { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; }
-  .top nav { display: flex; gap: 6px; align-items: center; }
-  .top nav a.link { padding: 8px 12px; color: var(--muted); font-weight: 600; font-size: 14.5px; border-radius: 10px; }
-  .top nav a.link:hover { color: var(--text); }
-  .hero { position: relative; display: grid; grid-template-columns: 1.1fr .9fr; gap: 40px; align-items: center; padding: 60px 0 90px; }
-  .hero::before { content: ""; position: absolute; inset: -120px -30vw auto; height: 720px; z-index: -1;
-    background: radial-gradient(50% 60% at 25% 30%, rgba(139, 124, 255, .25), transparent 70%), radial-gradient(40% 50% at 85% 40%, rgba(212, 255, 58, .14), transparent 70%); }
-  .eyebrow { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line-2); color: var(--muted); font-size: 13px; font-weight: 600; }
-  .eyebrow b { color: var(--volt); }
-  .hero h1 { font-size: clamp(42px, 6.4vw, 80px); line-height: .98; letter-spacing: -.045em; margin: 22px 0 20px; font-weight: 800; }
-  .hero h1 span { background: linear-gradient(95deg, var(--volt), #9fffc9 45%, var(--violet)); -webkit-background-clip: text; background-clip: text; color: transparent; }
-  .hero .lede { font-size: 19px; color: var(--muted); max-width: 34em; }
-  .hero form { margin-top: 32px; max-width: 600px; }
-  .hero .fine { margin-top: 12px; color: var(--faint); font-size: 13.5px; }
-  .art-col { display: grid; place-items: center; }
-  section.band { padding: 90px 0; border-top: 1px solid var(--line); }
-  .band h2 { font-size: clamp(30px, 4vw, 46px); letter-spacing: -.035em; max-width: 18ch; }
-  .band .intro { color: var(--muted); font-size: 17px; margin-top: 12px; max-width: 38em; }
-  .steps3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 40px; counter-reset: s; }
-  .steps3 .card { padding: 26px; }
-  .steps3 .card::before { counter-increment: s; content: "0" counter(s); display: block; font-family: var(--display); font-weight: 800; font-size: 15px; color: var(--volt); margin-bottom: 18px; }
-  .steps3 h3 { font-size: 21px; margin-bottom: 8px; }
-  .feats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 18px; margin-top: 40px; }
-  .feat { padding: 26px; display: flex; flex-direction: column; gap: 10px; }
-  .feat.w3 { min-height: 230px; }
-  .feat.w3 { grid-column: span 3; } .feat.w2 { grid-column: span 2; }
-  .feat h3 { font-size: 21px; }
-  .feat p { color: var(--muted); }
-  .feat .viz { margin-top: auto; }
-  .scorerow { display: flex; gap: 14px; align-items: center; }
-  .capdemo { font: 800 22px/1.2 "Poppins", var(--body); text-align: center; padding: 18px; border-radius: 14px; background: linear-gradient(160deg, #2a2340, #10141a); }
-  .capdemo em { font-style: normal; color: var(--volt); }
-  .logos { display: flex; gap: 10px; }
-  .faq { margin-top: 30px; display: grid; gap: 10px; max-width: 820px; }
-  .faq details { padding: 18px 22px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); }
-  .faq summary { cursor: pointer; font-weight: 700; font-size: 16.5px; list-style: none; display: flex; justify-content: space-between; gap: 12px; }
-  .faq summary::after { content: "+"; color: var(--volt); font-size: 22px; line-height: 1; }
-  .faq details[open] summary::after { content: "–"; }
-  .faq p { color: var(--muted); margin-top: 10px; }
-  .cta { text-align: center; padding: 70px 24px; border-radius: 30px; margin: 0 0 80px;
-    background: radial-gradient(70% 120% at 50% 0%, rgba(212, 255, 58, .16), transparent 70%), var(--surface); border: 1px solid var(--line); }
-  .cta h2 { margin: 0 auto 14px; }
-  footer.site { border-top: 1px solid var(--line); padding: 30px 0 50px; color: var(--faint); font-size: 14px; }
-  footer.site .wrap { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-  footer.site a:hover { color: var(--text); }
-  @media (max-width: 960px) {
-    .hero { grid-template-columns: 1fr; padding-top: 30px; }
-    .art-col { display: none; }
-    .steps3 { grid-template-columns: 1fr; }
-    .feats { grid-template-columns: 1fr; } .feat.w3, .feat.w2 { grid-column: auto; }
-    .top nav a.link.hide-sm { display: none; }
+  :root {
+    --paper: #f4f6fa; --ink: #0e1424; --slate: #5b6478; --line: #dce1ec; --blue: #2438ff; --mist: #e7eafe; --white: #ffffff;
+    --font: "Schibsted Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --gutter: clamp(18px, 4vw, 48px);
+    --step--1: clamp(.82rem, .8rem + .1vw, .9rem);
+    --step-0: clamp(1rem, .96rem + .2vw, 1.12rem);
+    --step-1: clamp(1.25rem, 1.1rem + .7vw, 1.6rem);
+    --step-2: clamp(1.7rem, 1.3rem + 1.8vw, 2.7rem);
+    --step-3: clamp(2.3rem, 1.4rem + 4vw, 4.6rem);
+    --step-4: clamp(2.8rem, 1.2rem + 6.4vw, 6rem);
   }
+  :root[data-theme="dark"] { --paper: #0b0f1c; --ink: #eef1fa; --slate: #98a2bb; --line: #232a3e; --blue: #7d8bff; --mist: #171d38; --white: #121830; color-scheme: dark; }
+  :root[data-theme="light"] { color-scheme: light; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) { --paper: #0b0f1c; --ink: #eef1fa; --slate: #98a2bb; --line: #232a3e; --blue: #7d8bff; --mist: #171d38; --white: #121830; color-scheme: dark; }
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html { scroll-behavior: smooth; }
+  body { background: var(--paper); color: var(--ink); font: 400 var(--step-0)/1.6 var(--font); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+  a { color: inherit; }
+  :focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; border-radius: 4px; }
+  .wrap { width: min(1240px, 100% - var(--gutter) * 2); margin-inline: auto; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+  /* buttons */
+  .btn { display: inline-flex; align-items: center; justify-content: center; padding: .8em 1.4em; border-radius: 999px; border: 1px solid var(--ink);
+    background: var(--ink); color: var(--paper); font: 600 var(--step--1)/1 var(--font); text-decoration: none; cursor: pointer; transition: background .2s, color .2s, border-color .2s; }
+  .btn:hover { background: var(--blue); border-color: var(--blue); color: #fff; }
+  .btn.quiet { background: transparent; color: var(--ink); border-color: var(--line); }
+  .btn.quiet:hover { border-color: var(--ink); background: transparent; color: var(--ink); }
+
+  /* header */
+  header.top { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--paper) 86%, transparent); backdrop-filter: blur(12px); }
+  .nav { display: flex; align-items: center; justify-content: space-between; height: 68px; }
+  .logo { display: inline-flex; align-items: center; gap: .6rem; font-weight: 700; font-size: 1.15rem; letter-spacing: -.02em; text-decoration: none; }
+  .logo svg { width: 22px; height: 22px; }
+  .nav nav { display: flex; align-items: center; gap: clamp(.8rem, 2vw, 2rem); font-size: var(--step--1); font-weight: 500; }
+  .nav nav a:not(.btn) { color: var(--slate); text-decoration: none; }
+  .nav nav a:not(.btn):hover { color: var(--ink); }
+
+  .skip { position: absolute; left: 12px; top: -60px; z-index: 100; padding: .6rem 1rem; border-radius: 10px; background: var(--ink); color: var(--paper); font-weight: 600; text-decoration: none; }
+  .skip:focus { top: 12px; }
+  /* header actions */
+  .actions { position: relative; display: flex; align-items: center; gap: .5rem; }
+  .icon-btn { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; }
+  .icon-btn:hover { border-color: var(--ink); }
+  .icon-btn svg { width: 18px; height: 18px; }
+  .avatar { width: 40px; height: 40px; border-radius: 999px; display: none; place-items: center; background: var(--blue); color: #fff; font-weight: 700; text-transform: uppercase; }
+  .signed-in .avatar { display: grid; }
+  .signed-in [data-signin] { display: none; }
+  .dash-btn { display: none; }
+  .signed-in .dash-btn { display: inline-flex; }
+  .err { min-height: 1.2em; margin-top: .8rem; color: #b42318; font-size: var(--step--1); font-weight: 500; }
+  :root[data-theme="dark"] .err { color: #ff8a80; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme]) .err { color: #ff8a80; } }
+  .btn[disabled] { opacity: .6; cursor: wait; }
+  .pop { position: absolute; right: 0; top: calc(100% + 10px); width: min(300px, 100vw - var(--gutter) * 2); padding: 1.1rem; border: 1px solid var(--line); border-radius: 16px; background: var(--white); box-shadow: 0 18px 40px -18px rgba(14,20,36,.35); }
+  .pop[hidden] { display: none; }
+  .pop h2 { font-size: var(--step--1); font-weight: 600; letter-spacing: 0; max-width: none; line-height: 1.3; margin-bottom: .6rem; }
+  .seg3 { display: grid; grid-template-columns: repeat(3, 1fr); padding: 3px; border-radius: 12px; background: var(--paper); border: 1px solid var(--line); }
+  .seg3 button { border: 0; border-radius: 9px; padding: .55rem 0; background: transparent; color: var(--slate); font: 600 var(--step--1) var(--font); cursor: pointer; }
+  .seg3 button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+  .pop .who { display: none; margin-top: 1.1rem; padding-top: 1rem; border-top: 1px solid var(--line); font-size: var(--step--1); color: var(--slate); }
+  .signed-in .pop .who { display: block; }
+  .pop .who b { display: block; color: var(--ink); font-weight: 600; word-break: break-all; margin-bottom: .6rem; }
+
+  /* tabs */
+  .tabs { position: sticky; top: 68px; z-index: 19; background: color-mix(in srgb, var(--paper) 90%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
+  .tabs .wrap { display: flex; gap: clamp(.9rem, 3vw, 2.2rem); overflow-x: auto; scrollbar-width: none; }
+  .tab { appearance: none; background: none; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; padding: .85rem .1rem; display: flex; align-items: center; gap: .5rem; color: var(--slate); font: 500 var(--step--1) var(--font); cursor: pointer; white-space: nowrap; }
+  .tab svg { display: none; width: 22px; height: 22px; }
+  .tab:hover { color: var(--ink); }
+  .tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--blue); }
+  .panel[hidden] { display: none; }
+
+  /* sign in */
+  dialog { margin: auto; width: min(420px, 100% - 32px); padding: 1.8rem; border: 1px solid var(--line); border-radius: 20px; background: var(--white); color: var(--ink); font: inherit; }
+  dialog::backdrop { background: rgba(8, 12, 24, .55); }
+  dialog h2 { font-size: var(--step-2); line-height: 1.05; max-width: none; }
+  dialog .x { position: absolute; top: .8rem; right: .8rem; }
+  .field { display: grid; gap: .35rem; margin-top: 1rem; font-size: var(--step--1); font-weight: 600; }
+  .field input { padding: .8rem 1rem; border-radius: 12px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); font: 400 var(--step-0) var(--font); }
+  .field input:focus { outline: 2px solid var(--blue); outline-offset: 1px; border-color: transparent; }
+  dialog .btn { width: 100%; margin-top: 1.3rem; padding: 1em; }
+  .swap { margin-top: 1rem; font-size: var(--step--1); color: var(--slate); }
+  .swap button { background: none; border: 0; padding: 0; color: var(--blue); font: 600 inherit; font-family: var(--font); cursor: pointer; text-decoration: underline; }
+
+  .agree { display: flex; gap: .6rem; align-items: flex-start; margin-top: 1rem; font-size: var(--step--1); color: var(--slate); }
+  .agree[hidden], #capBox[hidden], .field[hidden] { display: none; }
+  .agree input { margin-top: .25rem; }
+  .agree a { color: var(--ink); text-decoration: underline; }
+  #capBox { margin-top: 1rem; }
+
+  .quotes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: clamp(20px, 3vw, 40px); margin-top: clamp(24px, 4vw, 48px); }
+  .quotes blockquote { margin: 0; padding-top: 1.1rem; border-top: 1px solid var(--ink); }
+  .quotes p { font-size: var(--step-1); line-height: 1.35; letter-spacing: -.01em; }
+  .quotes footer { all: unset; display: block; margin-top: .9rem; font-size: var(--step--1); color: var(--slate); }
+  .quotes footer b { color: var(--ink); font-weight: 600; }
+
+  /* hero */
+  .hero { padding: clamp(32px, 5vw, 72px) 0 clamp(48px, 7vw, 96px); }
+  h1 { font-size: var(--step-4); line-height: .94; letter-spacing: -.045em; font-weight: 700; max-width: 16ch; }
+  .lede { margin-top: clamp(20px, 2.4vw, 32px); font-size: var(--step-1); line-height: 1.4; color: var(--slate); max-width: 34ch; letter-spacing: -.01em; }
+  .try { display: flex; gap: .5rem; margin-top: clamp(24px, 3vw, 40px); max-width: 560px; padding: .35rem; border: 1px solid var(--line); border-radius: 999px; background: var(--white); }
+  .try:focus-within { border-color: var(--blue); }
+  .try input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; color: var(--ink); font: 500 var(--step-0) var(--font); padding: 0 1.1rem; }
+  .try input::placeholder { color: var(--slate); }
+  .note { margin-top: .9rem; font-size: var(--step--1); color: var(--slate); }
+
+  /* demo */
+  .demo { margin-top: clamp(36px, 5vw, 64px); display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 300px); gap: clamp(20px, 4vw, 64px); align-items: end; }
+  .tl-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem; font-size: var(--step--1); color: var(--slate); margin-bottom: .9rem; }
+  .tl-head b { color: var(--ink); font-weight: 600; }
+  .wave { position: relative; margin-top: 2.2rem; height: clamp(120px, 16vw, 190px); display: flex; align-items: center; gap: 2px; }
+  .wave i { flex: 1; min-width: 1px; background: var(--line); border-radius: 2px; height: var(--h); transition: background .25s; }
+  .wave i.on { background: var(--blue); }
+  .seg { position: absolute; top: -6px; bottom: -6px; left: var(--l); width: var(--w); border: 0; padding: 0; background: transparent; cursor: pointer; border-top: 2px solid var(--ink); border-radius: 0; text-align: left; color: var(--ink); font: 600 var(--step--1)/1 var(--font); }
+  .seg span { position: absolute; top: -26px; left: 0; white-space: nowrap; }
+  .seg[aria-pressed="true"] { border-top-color: var(--blue); color: var(--blue); }
+  .seg:hover { background: color-mix(in srgb, var(--blue) 8%, transparent); }
+  .axis { display: flex; justify-content: space-between; margin-top: .8rem; padding-top: .6rem; border-top: 1px solid var(--line); font-size: var(--step--1); color: var(--slate); font-variant-numeric: tabular-nums; }
+
+  .phone { width: 100%; max-width: 300px; justify-self: end; aspect-ratio: 9/16; border-radius: 28px; background: var(--ink); color: #fff; position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; padding: 1.1rem; isolation: isolate; }
+  .phone::before { content: ""; position: absolute; inset: 0; z-index: -1; background: radial-gradient(120% 70% at 30% 0%, var(--tone, #3a4cff), transparent 70%), #0b1020; transition: --tone .4s; }
+  .phone .score { position: absolute; top: 1rem; left: 1rem; font-size: var(--step--1); font-weight: 700; background: #fff; color: #0e1424; border-radius: 999px; padding: .3em .7em; }
+  .phone .hook { position: absolute; top: 3.4rem; left: 1rem; right: 1rem; font-size: 1.15rem; font-weight: 700; line-height: 1.1; letter-spacing: -.02em; }
+  .caps { min-height: 4.4em; font-size: 1.45rem; font-weight: 800; line-height: 1.15; letter-spacing: -.02em; text-align: center; }
+  .caps span { opacity: .45; transition: opacity .12s, color .12s; }
+  .caps span.hot { opacity: 1; color: #d6dcff; }
+  .caps span.past { opacity: 1; }
+  .prog { height: 3px; margin-top: 1rem; background: rgba(255,255,255,.2); border-radius: 3px; overflow: hidden; }
+  .prog i { display: block; height: 100%; width: 0; background: #fff; }
+
+  /* sections */
+  section.block { padding: clamp(40px, 6vw, 96px) 0 clamp(56px, 8vw, 120px); }
+  .split { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: clamp(28px, 6vw, 96px); }
+  h2 { font-size: var(--step-3); line-height: 1; letter-spacing: -.04em; font-weight: 700; max-width: 14ch; }
+  .sub { margin-top: 1rem; color: var(--slate); max-width: 38ch; }
+
+  .steps { list-style: none; padding: 0; counter-reset: s; }
+  .steps li { counter-increment: s; display: grid; grid-template-columns: 3rem 1fr; padding: 1.6rem 0; border-top: 1px solid var(--line); }
+  .steps li:first-child { border-top: 0; padding-top: 0; }
+  .steps li::before { content: counter(s); color: var(--blue); font-weight: 700; font-size: var(--step-1); line-height: 1.2; }
+  .steps h3, .list h3 { font-size: var(--step-1); letter-spacing: -.02em; font-weight: 600; line-height: 1.2; }
+  .steps p, .list p { margin-top: .4rem; color: var(--slate); max-width: 46ch; }
+
+  .list { display: grid; }
+  .list > div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 1rem 3rem; padding: 1.5rem 0; border-top: 1px solid var(--line); }
+  .list > div:first-child { border-top: 0; padding-top: 0; }
+  .list p { margin: 0; }
+
+  /* pricing */
+  .plans { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: clamp(32px, 5vw, 64px); border-top: 1px solid var(--ink); }
+  .plan { padding: 1.6rem clamp(0px, 2vw, 1.6rem) 2rem; display: flex; flex-direction: column; gap: 1.1rem; border-left: 1px solid var(--line); }
+  .plan:first-child { border-left: 0; padding-left: 0; }
+  .plan h3 { font-size: var(--step-1); font-weight: 600; letter-spacing: -.02em; display: flex; justify-content: space-between; align-items: baseline; gap: .5rem; }
+  .plan h3 em { font-style: normal; font-size: var(--step--1); font-weight: 600; color: var(--blue); }
+  .price { font-size: var(--step-3); font-weight: 700; letter-spacing: -.05em; line-height: 1; }
+  .price small { font-size: var(--step--1); font-weight: 500; letter-spacing: 0; color: var(--slate); margin-left: .3rem; }
+  .perm { color: var(--slate); font-size: var(--step--1); margin-top: -.6rem; min-height: 1.4em; }
+  .plan ul { list-style: none; padding: 0; display: grid; gap: .55rem; color: var(--slate); font-size: var(--step--1); }
+  .plan li { padding-left: 1.3rem; position: relative; }
+  .plan li::before { content: ""; position: absolute; left: 0; top: .55em; width: .6rem; height: 2px; background: var(--blue); }
+  .plan .btn { margin-top: auto; align-self: flex-start; }
+  .plan.pick { background: var(--mist); border-left-color: transparent; padding-inline: clamp(14px, 2vw, 1.6rem); }
+  .plan.pick + .plan { border-left-color: transparent; }
+
+  details { border-top: 1px solid var(--line); padding: 1.2rem 0; }
+  details:last-child { border-bottom: 1px solid var(--line); }
+  summary { cursor: pointer; font-weight: 600; font-size: var(--step-1); letter-spacing: -.02em; list-style: none; display: flex; justify-content: space-between; gap: 1rem; }
+  summary::after { content: "+"; color: var(--blue); }
+  details[open] summary::after { content: "–"; }
+  details p { margin-top: .7rem; color: var(--slate); max-width: 56ch; }
+
+  footer { border-top: 1px solid var(--line); padding: 1.6rem 0 2.4rem; font-size: var(--step--1); color: var(--slate); }
+  footer .wrap { display: flex; justify-content: space-between; flex-wrap: wrap; gap: .8rem; }
+  footer a { text-decoration: none; margin-left: 1.2rem; }
+
+  @media (max-width: 860px) {
+    .demo { grid-template-columns: 1fr; }
+    .phone { justify-self: start; max-width: 260px; }
+    .split { grid-template-columns: 1fr; }
+    .list > div { grid-template-columns: 1fr; gap: .3rem; }
+    .plans { grid-template-columns: 1fr; border-top: 0; }
+    .plan, .plan:first-child { border-left: 0; border-top: 1px solid var(--ink); padding-inline: 0; }
+    .plan.pick { padding-inline: 14px; }
+    body { padding-bottom: calc(66px + env(safe-area-inset-bottom)); }
+    .tabs { position: fixed; top: auto; bottom: 0; left: 0; right: 0; border-bottom: 0; border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); background: var(--paper); }
+    .tabs .wrap { width: 100%; gap: 0; overflow: visible; }
+    .tab { flex: 1; flex-direction: column; gap: .15rem; padding: .55rem 0 .5rem; border-bottom: 0; margin: 0; font-size: .68rem; }
+    .tab svg { display: block; }
+    .tab[aria-selected="true"] { color: var(--blue); }
+    .signup-btn { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
 </style>
+<script>try{var t=localStorage.getItem("vc-theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
-<header class="wrap top">
-  <a class="brand" href="/" style="padding:0" id="brand"></a>
-  <nav id="topnav">
-    <a class="link hide-sm" href="#how">How it works</a>
-    <a class="link hide-sm" href="#pricing">Pricing</a>
-    <a class="link" href="/login" id="loginLink">Log in</a>
-    <a class="btn sm" href="/signup" id="ctaTop">Start free</a>
-  </nav>
-</header>
-
-<main class="wrap">
-  <section class="hero">
-    <div>
-      <span class="eyebrow"><b>New</b> Scored by Claude · transcribed by Whisper</span>
-      <h1>One long video.<br><span>A week of shorts.</span></h1>
-      <p class="lede">Paste a podcast, stream or interview. Verticlip finds the moments people will actually watch, scores each one for virality, adds animated captions and gets them onto YouTube Shorts and TikTok.</p>
-      <form class="linkbar" id="heroForm">
-        <svg class="lead" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>
-        <label class="sr" for="heroUrl">Video link</label>
-        <input id="heroUrl" type="url" inputmode="url" placeholder="Paste a video link" />
-        <button class="btn">Get free clips</button>
-      </form>
-      <p class="fine">30 free minutes every month. No card needed.</p>
-    </div>
-    <div class="art-col" aria-hidden="true">
-      <div class="stack-art">
-        <div class="mini"><div class="bg"></div><span class="badge-score mid">▲ 78</span><div class="cap">WAIT FOR <em>IT</em></div></div>
-        <div class="mini"><div class="bg"></div><span class="badge-score hi">▲ 94</span><div class="cap">NOBODY <em>TELLS</em> YOU</div></div>
-        <div class="mini"><div class="bg"></div><span class="badge-score hi">▲ 88</span><div class="cap">THIS <em>CHANGED</em> IT</div></div>
-      </div>
-    </div>
-  </section>
-
-  <section class="band" id="how">
-    <h2>From upload to posted in three steps</h2>
-    <p class="intro">No timeline scrubbing. You review a ranked list of finished clips and publish the ones you like.</p>
-    <div class="steps3">
-      <div class="card"><h3>Drop in a video</h3><p class="muted">Paste a YouTube, Twitch, Vimeo or Kick link, or upload a file up to a few hours long.</p></div>
-      <div class="card"><h3>AI finds the moments</h3><p class="muted">Whisper transcribes every word. Claude reads the whole conversation and picks self-contained moments with a strong hook and a payoff.</p></div>
-      <div class="card"><h3>Review and publish</h3><p class="muted">Clips come back ranked by virality score, captioned and cropped to 9:16. Download them or send them to your channels in one click.</p></div>
-    </div>
-  </section>
-
-  <section class="band">
-    <h2>Everything a short needs, done for you</h2>
-    <div class="feats">
-      <div class="card feat w3">
-        <h3>Virality score</h3>
-        <p>Each clip gets a 0–100 score with a breakdown for hook, flow, value and trend, plus a one-line reason. Post the strongest first.</p>
-        <div class="viz scorerow">
-          <div class="score hi" style="--v:94"><b>94</b><small>/100</small></div>
-          <div class="score mid" style="--v:78"><b>78</b><small>/100</small></div>
-          <div class="score" style="--v:61"><b>61</b><small>/100</small></div>
+<a class="skip" href="#top">Skip to content</a>
+<header class="top" id="hdr">
+  <div class="wrap nav">
+    <a class="logo" href="/" aria-label="Verticlip home">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="6.5" y="2.5" width="11" height="19" rx="3" stroke="currentColor" stroke-width="2"/><path d="M10.5 8.5v7l5-3.5z" fill="currentColor"/></svg>
+      Verticlip
+    </a>
+    <div class="actions">
+      <button class="icon-btn" id="setBtn" type="button" aria-label="Settings" aria-haspopup="true" aria-expanded="false" aria-controls="settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>
+      </button>
+      <span class="avatar" id="avatar" aria-hidden="true"></span>
+      <a class="btn dash-btn" href="/dashboard">Dashboard</a>
+      <button class="btn quiet" type="button" data-signin data-auth="signin">Sign in</button>
+      <button class="btn signup-btn" type="button" data-signin data-auth="signup">Start free</button>
+      <div class="pop" id="settings" role="dialog" aria-label="Settings" hidden>
+        <h2 id="themeLbl">Appearance</h2>
+        <div class="seg3" role="group" aria-labelledby="themeLbl">
+          <button type="button" data-theme-set="system" aria-pressed="true">System</button>
+          <button type="button" data-theme-set="light" aria-pressed="false">Light</button>
+          <button type="button" data-theme-set="dark" aria-pressed="false">Dark</button>
         </div>
+        <div class="who"><b id="whoEmail"></b><button class="btn quiet" type="button" id="signOut" style="width:100%">Sign out</button></div>
       </div>
-      <div class="card feat w3">
-        <h3>Animated captions</h3>
-        <p>Word-by-word captions that light up as they're spoken, in your brand colour. Or a bold box, or clean subtitles.</p>
-        <div class="viz capdemo">MOST PEOPLE <em>NEVER</em> TRY</div>
+    </div>
+  </div>
+</header>
+<div class="tabs"><div class="wrap" role="tablist" aria-label="Sections"><button class="tab" role="tab" id="t-home" data-tab="home" aria-controls="p-home" aria-selected="false" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Home</button><button class="tab" role="tab" id="t-how" data-tab="how" aria-controls="p-how" aria-selected="false" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l6-3.5z"/></svg>How it works</button><button class="tab" role="tab" id="t-features" data-tab="features" aria-controls="p-features" aria-selected="false" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Features</button><button class="tab" role="tab" id="t-pricing" data-tab="pricing" aria-controls="p-pricing" aria-selected="false" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18M16.5 7.5C15.5 6.3 14 6 12 6c-2.5 0-4 1.1-4 2.8 0 4 8.5 1.7 8.5 6 0 1.8-1.7 3.2-4.5 3.2-2 0-3.7-.6-4.7-1.9"/></svg>Pricing</button><button class="tab" role="tab" id="t-faq" data-tab="faq" aria-controls="p-faq" aria-selected="false" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.6 2.2c-.7.4-1.1 1-1.1 1.8M12 17h.01"/></svg>FAQ</button></div></div>
+
+<dialog id="auth" aria-labelledby="authTitle">
+  <button class="icon-btn x" type="button" id="authClose" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  <h2 id="authTitle">Sign in</h2>
+  <form id="authForm" novalidate>
+    <label class="field">Email<input type="email" name="email" autocomplete="email" required placeholder="you@example.com" /></label>
+    <label class="field">Password<input type="password" name="password" id="pw" autocomplete="current-password" required placeholder="Your password" /></label>
+    <label class="field" id="codeRow" hidden>Authentication code<input name="code" id="code" inputmode="numeric" autocomplete="one-time-code" placeholder="6-digit code or recovery code" /></label>
+    <label class="agree" id="agreeRow" hidden><input type="checkbox" id="agree" /><span>I am {{MIN_AGE}} or older and I accept the <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a>.</span></label>
+    <div id="capBox" hidden></div>
+    <button class="btn" id="authSubmit">Sign in</button>
+    <p class="err" id="authErr" role="alert"></p>
+  </form>
+  <p class="swap" id="swap"></p>
+</dialog>
+
+<main id="top" tabindex="-1">
+  <div class="panel" id="p-home" role="tabpanel" aria-labelledby="t-home" hidden>
+  <section class="wrap hero">
+    <h1>One long video.<br>A week of shorts.</h1>
+    <p class="lede">Paste a link. Verticlip picks the moments worth posting, captions them, and sends them to YouTube Shorts and TikTok.</p>
+    <form class="try" data-auth="signup">
+      <label class="sr" for="url">Video link</label>
+      <input id="url" type="url" inputmode="url" placeholder="Paste a video link" />
+      <button class="btn">Get free clips</button>
+    </form>
+    <p class="note">30 free minutes every month. No card needed.</p>
+
+    <div class="demo" aria-label="Example: clips found in a one-hour interview">
+      <div>
+        <div class="tl-head"><span><b>Founder interview</b> · 58 min</span><span>4 clips found. Select one to preview.</span></div>
+        <div class="wave" id="wave" role="group" aria-label="Clips on the video timeline"></div>
+        <div class="axis"><span>0:00</span><span>15:00</span><span>30:00</span><span>45:00</span><span>58:00</span></div>
       </div>
-      <div class="card feat w2"><h3>Hook titles</h3><p>A punchy on-screen title for the first seconds, written from what's said in the clip.</p></div>
-      <div class="card feat w2"><h3>Fill or fit</h3><p>Crop to full-screen 9:16, or keep the whole frame on a blurred background for wide shots and screen shares.</p></div>
-      <div class="card feat w2"><h3>Brand kit</h3><p>Set caption style, colour and logo once. Every new project uses them.</p></div>
-      <div class="card feat w3">
-        <h3>Publish to Shorts and TikTok</h3>
-        <p>Connect as many channels as you run. Pick clips, pick accounts, done. Each clip gets its own title, description and hashtags.</p>
-        <div class="viz logos"><span class="plat youtube" id="ytI"></span><span class="plat tiktok" id="ttI"></span></div>
+      <div class="phone" id="phone" aria-live="polite">
+        <span class="score" id="score">94</span>
+        <p class="hook" id="hook"></p>
+        <div class="caps" id="caps"></div>
+        <div class="prog"><i id="prog"></i></div>
       </div>
-      <div class="card feat w3"><h3>Ranked, not raw</h3><p>Clips start and end on full sentences, never mid-word, and never overlap. You get the best moments, not every moment.</p></div>
     </div>
   </section>
 
-  <section class="band" id="pricing">
-    <h2>Simple plans, billed by minutes of video</h2>
-    <p class="intro">Upload a 45-minute podcast and you've used 45 minutes. If a video fails, the minutes come back.</p>
-    <div class="plans" id="plans" style="margin-top:40px"></div>
+  <section class="block" id="quotes" hidden>
+    <div class="wrap">
+      <h2>What customers say</h2>
+      <div class="quotes" id="quoteList"></div>
+    </div>
   </section>
+  </div>
 
-  <section class="band">
-    <h2>Questions</h2>
-    <div class="faq">
-      <details><summary>What videos work best?</summary><p>Anything with people talking: podcasts, interviews, streams, talks, tutorials and vlogs. Verticlip reads what's said, so music-only or silent videos won't produce clips.</p></details>
-      <details><summary>How long can a video be?</summary><p>Up to three hours per video. Longer videos simply use more of your monthly minutes.</p></details>
-      <details><summary>Can I clip someone else's video?</summary><p>Only if you own it or have permission. You're responsible for the rights to everything you clip and post.</p></details>
-      <details><summary>Does it post without asking me?</summary><p>Never. Clips only go to YouTube or TikTok when you press Publish. YouTube uploads start private by default, and TikTok clips land in your inbox for a final check.</p></details>
-      <details><summary>Can I cancel any time?</summary><p>Yes. Manage or cancel your subscription from the billing page. You keep your plan until the end of the period you paid for.</p></details>
+  <div class="panel" id="p-how" role="tabpanel" aria-labelledby="t-how" hidden>
+  <section class="block">
+    <div class="wrap split">
+      <div><h2>From link to posted in three steps</h2><p class="sub">No timeline scrubbing. You review a ranked list of finished clips and publish the ones you like.</p></div>
+      <ol class="steps">
+        <li><div><h3>Add a video</h3><p>Paste a YouTube, Twitch, Vimeo or Kick link, or upload a file up to three hours long.</p></div></li>
+        <li><div><h3>Verticlip finds the moments</h3><p>It transcribes every word, then picks self-contained moments that open with a strong line and end on the payoff.</p></div></li>
+        <li><div><h3>Review and publish</h3><p>Clips come back ranked by score, cropped to 9:16 and captioned. Download them or send them to your channels.</p></div></li>
+      </ol>
     </div>
   </section>
 
-  <section class="cta">
-    <h2>Your next clip is already in your last video</h2>
-    <p class="muted" style="margin-bottom:26px">Start with 30 free minutes. It takes about a minute to set up.</p>
-    <a class="btn lg" href="/signup" id="ctaBottom">Start clipping free</a>
+  </div>
+
+  <div class="panel" id="p-features" role="tabpanel" aria-labelledby="t-features" hidden>
+  <section class="block">
+    <div class="wrap split">
+      <div><h2>Everything a short needs</h2></div>
+      <div class="list">
+        <div><h3>Virality score</h3><p>Every clip is scored from 0 to 100, with a breakdown for hook, flow, value and trend and a one-line reason. Post the strongest first.</p></div>
+        <div><h3>Animated captions</h3><p>Words light up as they are spoken. Pick word highlight, bold box or clean subtitles, in your brand color.</p></div>
+        <div><h3>Hook titles</h3><p>A short on-screen title for the first seconds, written from what is said in the clip.</p></div>
+        <div><h3>Fill or fit</h3><p>Crop to full-screen 9:16, or keep the whole frame on a blurred background for wide shots and screen shares.</p></div>
+        <div><h3>Brand kit</h3><p>Set caption style, color and logo once. Every new project uses them.</p></div>
+        <div><h3>Trend finder</h3><p>See which videos from major YouTube channels are taking off right now, ranked by views per hour. Use it for ideas and timing, and clip only what you own or have permission to use.</p></div>
+        <div><h3>Publish to Shorts and TikTok</h3><p>Connect every channel you run. Each clip gets its own title, description and hashtags.</p></div>
+        <div><h3>Clean cuts</h3><p>Clips start and end on whole sentences, never mid-word, and never overlap.</p></div>
+      </div>
+    </div>
   </section>
+
+  </div>
+
+  <div class="panel" id="p-pricing" role="tabpanel" aria-labelledby="t-pricing" hidden>
+  <section class="block">
+    <div class="wrap">
+      <h2>Plans are billed by minutes of video</h2>
+      <p class="sub">Minutes reset every month. If a project fails or you cancel it, the minutes come back.</p>
+      <div class="plans">
+        <section class="plan" data-plan="free">
+          <h3>Free</h3>
+          <div class="price">$0<small>per month</small></div>
+          <p class="perm">&nbsp;</p>
+          <ul><li>30 minutes a month</li><li>Up to 6 clips per video</li><li>Trend finder: top 5 videos</li><li>Made with Verticlip mark</li></ul>
+          <button class="btn quiet" type="button" data-auth="signup">Start free</button>
+        </section>
+        <section class="plan" data-plan="pro">
+          <h3>Pro</h3>
+          <div class="price">$19<small>per month</small></div>
+          <p class="perm">3.2&cent; per minute</p>
+          <ul><li>600 minutes a month</li><li>Up to 15 clips per video</li><li>Trend finder: top 20 videos</li><li>Your logo, no watermark</li></ul>
+          <button class="btn quiet" type="button" data-auth="signup">Choose Pro</button>
+        </section>
+        <section class="plan pick" data-plan="studio">
+          <h3>Studio <em>Best value</em></h3>
+          <div class="price">$49<small>per month</small></div>
+          <p class="perm">2.0&cent; per minute</p>
+          <ul><li>2,400 minutes a month</li><li>Up to 25 clips per video</li><li>Trend finder: top 50 videos in 4 regions</li><li>Your logo, no watermark</li></ul>
+          <button class="btn" type="button" data-auth="signup">Choose Studio</button>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  </div>
+
+  <div class="panel" id="p-faq" role="tabpanel" aria-labelledby="t-faq" hidden>
+  <section class="block">
+    <div class="wrap split">
+      <div><h2>Questions</h2></div>
+      <div>
+        <details><summary>Which sites can I paste a link from?</summary><p>YouTube, Twitch, Vimeo, Kick and most public video pages. You can also upload a file.</p></details>
+        <details><summary>What counts as a minute?</summary><p>One minute of source video, rounded up. A one-hour video uses 60 minutes, however many clips come out of it.</p></details>
+        <details><summary>Can I cancel any time?</summary><p>Yes. Manage or cancel from the billing page. You keep your plan until the end of the period you paid for.</p></details>
+      </div>
+    </div>
+  </section>
+
+  </div>
 </main>
 
-<footer class="site"><div class="wrap">
-  <span>© 2026 Verticlip. Only clip videos you own or have permission to use.</span>
-  <span style="display:flex;gap:18px"><a href="/terms">Terms</a><a href="/privacy">Privacy</a></span>
-</div></footer>
+<footer><div class="wrap"><span>© 2026 Verticlip. Only clip videos you own or have permission to use.</span><span><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/copyright">Copyright</a><a href="/refunds">Refunds</a><a href="/support">Support</a><a href="/status">Status</a></span></div></footer>
 
-<script src="/static/app.js"></script>
 <script>
-  const { $, esc, ICON } = VC;
-  $("#brand").innerHTML = `${ICON.logo}<span>Verticlip</span>`;
-  $("#ytI").innerHTML = ICON.youtube; $("#ttI").innerHTML = ICON.tiktok;
-  let loggedIn = false;
-
-  fetch("/api/me", { credentials: "same-origin" }).then((r) => {
-    if (!r.ok) return;
-    loggedIn = true;
-    $("#loginLink").remove();
-    $("#ctaTop").textContent = "Open dashboard"; $("#ctaTop").href = "/dashboard";
-    $("#ctaBottom").textContent = "Go to your projects"; $("#ctaBottom").href = "/dashboard";
-  }).catch(() => { });
-
-  $("#heroForm").onsubmit = (e) => {
-    e.preventDefault();
-    const url = $("#heroUrl").value.trim();
-    const dest = "/dashboard" + (url ? `?url=${encodeURIComponent(url)}` : "");
-    location.href = loggedIn ? dest : `/signup?next=${encodeURIComponent(dest)}`;
+(() => {
+  const $ = (q, r = document) => r.querySelector(q), $$ = (q, r = document) => [...r.querySelectorAll(q)];
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+    set(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} },
   };
 
+  // ----- tabs (hash routed, so each tab can be linked to)
+  const tabs = $$(".tab"), names = tabs.map((t) => t.dataset.tab);
+  // every tab has its own address, so it can be linked to, bookmarked and found by search engines
+  const PATH = { home: "/", how: "/how-it-works", features: "/features", pricing: "/pricing", faq: "/faq" };
+  const fromPath = () => names.find((n) => PATH[n] === (location.pathname.replace(/\/$/, "") || "/")) || location.hash.slice(1);
+  function go(name, push) {
+    if (push && PATH[name] !== location.pathname) { try { history.pushState(null, "", PATH[name]); } catch { /* opened as a local file */ } }
+    document.title = name === "home" ? "Verticlip" : $("#t-" + name).textContent.trim() + " · Verticlip";
+    show(name);
+  }
+  function show(name, focus) {
+    if (!names.includes(name)) name = "home";
+    names.forEach((n) => { $("#p-" + n).hidden = n !== name; });
+    tabs.forEach((t) => { const on = t.dataset.tab === name; t.setAttribute("aria-selected", on); t.tabIndex = on ? 0 : -1; if (on && focus) t.focus(); });
+    scrollTo({ top: 0, behavior: "instant" });
+  }
+  tabs.forEach((t, i) => {
+    t.addEventListener("click", () => go(t.dataset.tab, true));
+    t.addEventListener("keydown", (e) => {
+      const d = { ArrowRight: 1, ArrowLeft: -1 }[e.key]; if (e.key === "Home") return go2(0); if (e.key === "End") return go2(tabs.length - 1);
+      if (d) go2((i + d + tabs.length) % tabs.length);
+      function go2(n) { e.preventDefault(); go(names[n], true); show(names[n], true); }
+    });
+  });
+  addEventListener("popstate", () => go(names.includes(fromPath()) ? fromPath() : "home"));
+  show(fromPath());
+
+  // ----- theme: system (no attribute), light or dark
+  const root = document.documentElement;
+  function setTheme(mode, save) {
+    if (mode === "light" || mode === "dark") root.dataset.theme = mode; else { delete root.dataset.theme; mode = "system"; }
+    $$("[data-theme-set]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.themeSet === mode));
+    if (save) store.set("vc-theme", mode);
+  }
+  $$("[data-theme-set]").forEach((b) => b.addEventListener("click", () => setTheme(b.dataset.themeSet, true)));
+  setTheme(store.get("vc-theme") || "system");
+
+  // ----- settings popover
+  const setBtn = $("#setBtn"), pop = $("#settings");
+  const closePop = () => { pop.hidden = true; setBtn.setAttribute("aria-expanded", "false"); };
+  setBtn.addEventListener("click", () => { pop.hidden = !pop.hidden; setBtn.setAttribute("aria-expanded", String(!pop.hidden)); });
+  document.addEventListener("click", (e) => { if (!pop.hidden && !pop.contains(e.target) && !setBtn.contains(e.target)) closePop(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !pop.hidden) { closePop(); setBtn.focus(); } });
+
+  // ----- sign in / create account (talks to the real /api/auth endpoints)
+  async function call(path, { method = "GET", body } = {}) {
+    const headers = { "X-Verticlip": "1" }; let payload;
+    if (body !== undefined) { headers["Content-Type"] = "application/json"; payload = JSON.stringify(body); }
+    let res;
+    try { res = await fetch(path, { method, headers, body: payload, credentials: "same-origin" }); }
+    catch { throw new Error("Can't reach Verticlip. Check your connection."); }
+    if (!res.ok) { let m = "Something went wrong.", d = {}; try { d = await res.json(); if (typeof d.detail === "string") m = d.detail; } catch {} const e = new Error(m); e.status = res.status; e.data = d; throw e; }
+    return res.json();
+  }
+  const dlg = $("#auth"), form = $("#authForm"), errEl = $("#authErr"), submit = $("#authSubmit");
+  let mode = "signin", dest = "/dashboard";
+  function setMode(m) {
+    mode = m; const up = m === "signup";
+    $("#authTitle").textContent = up ? "Create your account" : "Sign in";
+    submit.textContent = up ? "Create account" : "Sign in";
+    $("#pw").autocomplete = up ? "new-password" : "current-password";
+    $("#pw").placeholder = up ? "At least 8 characters" : "Your password";
+    $("#swap").innerHTML = up ? `Already have an account? <button type="button" data-swap="signin">Sign in</button>` : `New to Verticlip? <button type="button" data-swap="signup">Create an account</button>`;
+    errEl.textContent = "";
+    $("#agreeRow").hidden = !up; $("#capBox").hidden = !up; $("#codeRow").hidden = true;
+    if (up && !capLoaded) { capLoaded = true; loadCaptcha(); }
+  }
+  let capLoaded = false, cap = { token: () => "", reset() { } };
+  async function loadCaptcha() {
+    const cfg = await fetch("/api/config").then((r) => r.json()).catch(() => ({}));
+    if (!cfg.turnstile_site_key) return;
+    await new Promise((done) => { const s = document.createElement("script"); s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"; s.onload = done; s.onerror = done; document.head.append(s); });
+    if (!window.turnstile) return;
+    const id = window.turnstile.render($("#capBox"), { sitekey: cfg.turnstile_site_key });
+    cap = { token: () => window.turnstile.getResponse(id) || "", reset: () => window.turnstile.reset(id) };
+  }
+  $("#swap").addEventListener("click", (e) => { const b = e.target.closest("[data-swap]"); if (b) setMode(b.dataset.swap); });
+  function openAuth(m, to) { closePop(); dest = to || "/dashboard"; setMode(m); form.reset(); dlg.showModal(); $("[name=email]", form).focus(); }
+  $$("[data-auth]").forEach((el) => {
+    if (el.tagName === "FORM") el.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const url = $("input", el).value.trim(), to = "/dashboard" + (url ? `?url=${encodeURIComponent(url)}` : "");
+      if (root.classList.contains("signed-in")) location.href = to; else openAuth(el.dataset.auth, to);
+    });
+    else el.addEventListener("click", () => openAuth(el.dataset.auth));
+  });
+  $("#authClose").addEventListener("click", () => dlg.close());
+  dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
+  function paint(user) {
+    root.classList.toggle("signed-in", !!user);
+    const label = user ? (user.name || user.email) : "";
+    $("#avatar").textContent = label ? label[0] : ""; $("#whoEmail").textContent = user ? user.email : "";
+  }
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault(); errEl.textContent = "";
+    const email = $("[name=email]", form).value.trim(), password = $("#pw").value;
+    if (!email || !password) { errEl.textContent = "Enter your email and password."; return; }
+    if (mode === "signup" && !$("#agree").checked) { errEl.textContent = "Please confirm your age and accept the Terms and Privacy Policy."; return; }
+    submit.disabled = true;
+    try {
+      const body = mode === "signup" ? { email, password, agree: true, captcha: cap.token() } : { email, password, code: $("#code").value.trim() };
+      await call(mode === "signup" ? "/api/auth/signup" : "/api/auth/login", { method: "POST", body });
+      location.href = dest;
+    } catch (err) {
+      errEl.textContent = err.message; submit.disabled = false; cap.reset();
+      if (err.data && err.data.two_factor) { $("#codeRow").hidden = false; $("#code").focus(); }
+    }
+  });
+  $("#signOut").addEventListener("click", async () => { try { await call("/api/auth/logout", { method: "POST" }); } catch {} paint(null); closePop(); });
+  fetch("/api/me", { credentials: "same-origin" }).then((r) => r.ok ? r.json() : null).then((d) => paint(d && d.user)).catch(() => {});
+
+  // ----- customer quotes: shown only when real, approved ones exist
+  fetch("/api/testimonials").then((r) => r.json()).then(({ testimonials }) => {
+    if (!testimonials.length) return;
+    const esc = (t) => String(t).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    $("#quoteList").innerHTML = testimonials.map((t) => `<blockquote><p>\u201c${esc(t.quote)}\u201d</p><footer><b>${esc(t.name)}</b>${t.role ? ", " + esc(t.role) : ""}</footer></blockquote>`).join("");
+    $("#quotes").hidden = false;
+  }).catch(() => {});
+
+  // ----- pricing comes from the server so it always matches billing
   fetch("/api/plans").then((r) => r.json()).then(({ plans }) => {
-    const rows = (p) => [`${p.minutes.toLocaleString()} minutes of video a month`, `Up to ${p.max_clips} clips per video`,
-      "Virality scores, captions and hook titles", p.watermark ? "Small “Made with Verticlip” mark" : "No watermark",
-      ...(p.brand_logo ? ["Your logo on every clip"] : []), "Publish to YouTube and TikTok"];
-    $("#plans").innerHTML = ["free", "pro", "studio"].map((k) => {
-      const p = plans[k];
-      return `<section class="card plan${k === "pro" ? " featured" : ""}">${k === "pro" ? `<span class="pill run tag">Most popular</span>` : ""}
-        <h3>${esc(p.name)}</h3><div class="price">$${p.price}<small> / month</small></div>
-        <ul>${rows(p).map((r) => `<li>${esc(r)}</li>`).join("")}</ul>
-        <a class="btn${k === "pro" ? "" : " ghost"}" href="/signup${k === "free" ? "" : "?next=" + encodeURIComponent("/billing")}">${k === "free" ? "Start free" : "Choose " + esc(p.name)}</a></section>`;
-    }).join("");
-  }).catch(() => { });
+    $$("[data-plan]").forEach((el) => {
+      const p = plans[el.dataset.plan]; if (!p) return;
+      $(".price", el).innerHTML = `$${p.price}<small>per month</small>`;
+      $(".perm", el).textContent = p.price ? `${(p.price / p.minutes * 100).toFixed(1)}\u00a2 per minute` : "";
+      $("ul", el).innerHTML = [`${p.minutes.toLocaleString()} minutes a month`, `Up to ${p.max_clips} clips per video`,
+        `Trend finder: top ${p.trend_items} videos${p.trend_items >= 50 ? " in 4 regions" : ""}`,
+        p.brand_logo ? "Your logo, no watermark" : "Made with Verticlip mark"].map((t) => `<li>${t}</li>`).join("");
+    });
+  }).catch(() => {});
+})();
+
+(() => {
+  // Example data for the hero demo (the clips and captions are illustrative).
+  const clips = [
+    { at: 8,  len: 9,  score: 78, tone: "#2e8f7a", hook: "The pricing mistake everyone makes", words: "We priced it too low for two years".split(" ") },
+    { at: 31, len: 11, score: 94, tone: "#3a4cff", hook: "Nobody tells you this about hiring", words: "Hire slowly and fire even slower than that".split(" ") },
+    { at: 57, len: 8,  score: 61, tone: "#9a5a2e", hook: "Why we turned down the offer", words: "The money was never the point".split(" ") },
+    { at: 79, len: 10, score: 88, tone: "#7a3cc9", hook: "The one metric that changed us", words: "Retention told us everything we needed".split(" ") },
+  ];
+  const wave = document.getElementById("wave"), phone = document.getElementById("phone");
+  const $ = (id) => document.getElementById(id);
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const N = 120, bars = [];
+  for (let i = 0; i < N; i++) {                       // deterministic pseudo-waveform
+    const h = 18 + 62 * Math.abs(Math.sin(i * .37) * Math.cos(i * .11) + Math.sin(i * 1.7) * .25);
+    const b = document.createElement("i"); b.style.setProperty("--h", Math.min(96, h) + "%"); wave.appendChild(b); bars.push(b);
+  }
+  const btns = clips.map((c, i) => {
+    const b = document.createElement("button");
+    b.className = "seg"; b.type = "button"; b.style.setProperty("--l", c.at + "%"); b.style.setProperty("--w", c.len + "%");
+    b.innerHTML = `<span>${c.score}</span>`; b.setAttribute("aria-label", `Clip ${i + 1}, score ${c.score}: ${c.hook}`);
+    b.addEventListener("click", () => select(i)); wave.appendChild(b); return b;
+  });
+  let cur = 0, timer = null, next = null;
+  function select(i) {
+    cur = i; clearInterval(timer); clearTimeout(next);
+    const c = clips[i];
+    btns.forEach((b, j) => b.setAttribute("aria-pressed", j === i));
+    bars.forEach((b, j) => b.classList.toggle("on", j >= c.at && j < c.at + c.len + 1));
+    phone.style.setProperty("--tone", c.tone);
+    $("score").textContent = c.score; $("hook").textContent = c.hook;
+    const caps = $("caps"); caps.innerHTML = c.words.map((w) => `<span>${w}</span>`).join(" ");
+    const spans = [...caps.children], prog = $("prog");
+    if (reduce) { spans.forEach((s) => s.classList.add("past")); prog.style.width = "100%"; return; }
+    let k = -1; prog.style.width = "0";
+    const tick = () => {
+      k++;
+      if (k >= spans.length) { clearInterval(timer); next = setTimeout(() => select((cur + 1) % clips.length), 1400); return; }
+      spans.forEach((s, j) => { s.classList.toggle("hot", j === k); s.classList.toggle("past", j < k); });
+      prog.style.width = ((k + 1) / spans.length * 100) + "%";
+    };
+    tick(); timer = setInterval(tick, 380);
+  }
+  select(1);
+})();
 </script>
 </body>
 </html>

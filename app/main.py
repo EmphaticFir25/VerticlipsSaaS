@@ -5,9 +5,11 @@ Run locally:  uvicorn app.main:app --port 33214
 from __future__ import annotations
 
 import contextlib
+import html
 import json
 import re
 import shutil
+import time
 import uuid
 from pathlib import Path
 from typing import Any, Optional
@@ -19,18 +21,18 @@ from starlette.exceptions import HTTPException
 from starlette.middleware import Middleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
-from starlette.responses import FileResponse, JSONResponse, RedirectResponse
+from starlette.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from . import ai, auth, billing, config, db, media, pipeline, social, worker
+from . import ai, auth, billing, config, db, janitor, mailer, media, pipeline, social, status, trends, worker
 
 PARALLEL = {"free": 1, "pro": 3, "studio": 5}
 FILE_NAME = re.compile(r"^(clip_\d{2}\.(mp4|jpg)|thumb\.jpg)$")
 ID = re.compile(r"^[0-9a-f]{8,32}$")
 CSRF_HEADER = "x-verticlip"
 APP_PAGES = {"dashboard": "dashboard.html", "brand": "brand.html", "accounts": "accounts.html",
-             "billing": "billing.html", "settings": "settings.html"}
+             "billing": "billing.html", "settings": "settings.html", "trends": "trends.html"}
 
 
 # ---------- helpers ----------
@@ -57,7 +59,31 @@ def require_user(request: Request) -> dict:
     user = current_user(request)
     if user is None:
         raise err(401, "Please log in.")
+    if user.get("suspended"):
+        raise err(403, "This account is suspended. Contact support if you think this is a mistake.")
     return user
+
+
+def require_verified(user: dict) -> None:
+    if config.REQUIRE_EMAIL_VERIFICATION and not user.get("email_verified"):
+        raise err(403, "Confirm your email first. Use the link we sent, or ask for a new one from your dashboard.")
+
+
+def enforce_link_policy(user: dict, info: dict) -> None:
+    """In "owned" mode a pasted link must be a YouTube video from a channel this customer connected."""
+    if config.LINK_POLICY != "owned":
+        return
+    if info.get("extractor", "").lower() != "youtube" or not info.get("channel_id"):
+        raise err(403, "Links are limited to YouTube videos from a channel you have connected. Upload the video file instead.")
+    owned = {a["external_id"] for a in db.list_accounts(user["id"]) if a["platform"] == "youtube"}
+    if info["channel_id"] not in owned:
+        raise err(403, "This video is from a channel that isn't connected to your account. Connect that YouTube channel in "
+                       "Social accounts, or upload the video file instead.")
+
+
+def require_rights(value) -> None:
+    if value is not True and str(value).lower() != "true":
+        raise err(400, "Confirm that you own this video or have permission to clip it.")
 
 
 def set_session(resp: Response, token: str) -> None:
@@ -66,13 +92,17 @@ def set_session(resp: Response, token: str) -> None:
 
 
 def client_ip(request: Request) -> str:
-    fwd = request.headers.get("cf-connecting-ip") or request.headers.get("x-forwarded-for", "")
+    cf = request.headers.get("cf-connecting-ip") if config.TRUST_CLOUDFLARE else None
+    fwd = cf or request.headers.get("x-forwarded-for", "")
     return fwd.split(",")[0].strip() or (request.client.host if request.client else "?")
 
 
 def public_user(user: dict) -> dict:
     return {"id": user["id"], "email": user["email"], "name": user["name"], "plan": user["plan"],
-            "has_subscription": bool(user.get("stripe_subscription")), "created": user["created"]}
+            "has_subscription": bool(user.get("stripe_subscription")), "created": user["created"],
+            "two_factor": bool(user.get("totp_enabled")),
+            "email_verified": bool(user.get("email_verified")), "notify_email": bool(user.get("notify_email", 1)),
+            "verification_required": config.REQUIRE_EMAIL_VERIFICATION and not user.get("email_verified")}
 
 
 def public_project(p: dict) -> dict:
@@ -92,12 +122,40 @@ def public_clip(c: dict) -> dict:
     return out
 
 
-def page(name: str, status: int = 200) -> FileResponse:
-    return FileResponse(config.WEB_DIR / name, status_code=status, media_type="text/html",
-                        headers={"Cache-Control": "no-cache"})
+def _tokens() -> dict:
+    return {"LEGAL_NAME": config.LEGAL_NAME, "LEGAL_ADDRESS": config.LEGAL_ADDRESS or "(address to be added)",
+            "CONTACT_EMAIL": config.CONTACT_EMAIL, "PRIVACY_EMAIL": config.PRIVACY_EMAIL,
+            "ABUSE_EMAIL": config.ABUSE_EMAIL, "SECURITY_EMAIL": config.SECURITY_EMAIL,
+            "JURISDICTION": config.JURISDICTION, "MIN_AGE": str(config.MIN_AGE),
+            "SOURCE_DAYS": str(config.SOURCE_RETENTION_DAYS), "PROJECT_DAYS": str(config.PROJECT_RETENTION_DAYS),
+            "PUBLIC_BASE": config.PUBLIC_BASE}
+
+
+# Pages that should not appear in search results: accounts, the app itself, and one-time links.
+NOINDEX = {"trends.html", "login.html", "signup.html", "forgot.html", "reset.html", "verify.html", "project.html", "404.html",
+           "dashboard.html", "brand.html", "accounts.html", "billing.html", "settings.html"}
+
+
+def page(name: str, status: int = 200, extra: Optional[dict] = None, raw: Optional[dict] = None) -> Response:
+    text = (config.WEB_DIR / name).read_text(encoding="utf-8")
+    for key, value in {**_tokens(), **(extra or {})}.items():
+        text = text.replace("{{" + key + "}}", html.escape(value))
+    for key, value in (raw or {}).items():
+        text = text.replace("{{" + key + "}}", value)
+    headers = {"Cache-Control": "no-cache"}
+    if name in NOINDEX:
+        headers["X-Robots-Tag"] = "noindex, nofollow"
+    return Response(text, status_code=status, media_type="text/html", headers=headers)
 
 
 # ---------- middleware ----------
+
+CSP = ("default-src 'self'; img-src 'self' data: blob: https://i.ytimg.com; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; "
+       "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; "
+       "connect-src 'self' https://challenges.cloudflare.com; font-src 'self'; object-src 'none'; base-uri 'self'; "
+       "form-action 'self'; frame-ancestors 'none'")
+api_throttle = auth.Throttle(limit=config.API_WRITES_PER_MINUTE, window=60)
+
 
 class Guard(BaseHTTPMiddleware):
     """Security headers on every response; a custom header on every state-changing API call so
@@ -108,7 +166,17 @@ class Guard(BaseHTTPMiddleware):
         if (request.method in ("POST", "PUT", "PATCH", "DELETE") and path.startswith("/api/")
                 and path != "/api/billing/webhook" and request.headers.get(CSRF_HEADER) != "1"):
             return JSONResponse({"detail": "Missing request header."}, status_code=403)
+        if request.method in ("POST", "PUT", "PATCH", "DELETE") and path.startswith("/api/") and path != "/api/billing/webhook":
+            ip = f"w|{client_ip(request)}"
+            if api_throttle.blocked(ip):
+                return JSONResponse({"detail": "Too many requests. Slow down and try again in a minute."}, status_code=429)
+            api_throttle.fail(ip)
         resp = await call_next(request)
+        if path.startswith("/api/"):
+            resp.headers.setdefault("Cache-Control", "no-store")
+        resp.headers.setdefault("Content-Security-Policy", CSP)
+        resp.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()")
+        resp.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
         resp.headers.setdefault("X-Content-Type-Options", "nosniff")
         resp.headers.setdefault("X-Frame-Options", "DENY")
         resp.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
@@ -133,8 +201,49 @@ async def server_error(request: Request, exc: Exception):
 
 # ---------- pages ----------
 
+LANDING = {   # one real, indexable address per tab
+    "/": ("Verticlip: turn one long video into a week of shorts",
+          "Paste a long video. Verticlip finds the best moments, scores them, adds animated captions and sends them to YouTube Shorts and TikTok."),
+    "/how-it-works": ("How Verticlip works: from a link to posted shorts in three steps",
+                      "Add a video, let AI find the moments worth posting, then review ranked, captioned clips and publish them."),
+    "/features": ("Verticlip features: virality scores, animated captions, hook titles and one-click publishing",
+                  "Every clip gets a virality score, animated captions, a hook title and clean cuts, with your brand kit applied."),
+    "/pricing": ("Verticlip pricing: plans billed by minutes of video",
+                 "Start free with 30 minutes a month. Paid plans add more minutes, more clips per video and no watermark."),
+    "/faq": ("Verticlip FAQ: links, minutes and cancelling",
+             "Answers about supported sites, how minutes are counted, and how to cancel."),
+}
+
+
+def _jsonld() -> str:
+    offers = [{"@type": "Offer", "name": p["name"], "price": str(p["price"]), "priceCurrency": "USD"} for p in config.PLANS.values()]
+    data = {"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "Verticlip",
+            "applicationCategory": "MultimediaApplication", "operatingSystem": "Web", "url": config.PUBLIC_BASE,
+            "description": LANDING["/"][1], "offers": offers}
+    return json.dumps(data).replace("</", "<\\/")
+
+
 async def landing(request: Request):
-    return page("index.html")
+    path = request.url.path.rstrip("/") or "/"
+    title, desc = LANDING.get(path, LANDING["/"])
+    return page("index.html", extra={"SEO_TITLE": title, "SEO_DESC": desc, "SEO_PATH": "" if path == "/" else path},
+                raw={"JSONLD": _jsonld()})
+
+
+PUBLIC_PATHS = [*LANDING, "/terms", "/privacy", "/copyright", "/refunds", "/support", "/status"]
+
+
+async def robots_txt(request: Request):
+    body = ("User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /files/\nDisallow: /project/\nDisallow: /dashboard\n"
+            "Disallow: /brand\nDisallow: /accounts\nDisallow: /billing\nDisallow: /settings\n"
+            f"Disallow: /login\nDisallow: /signup\nDisallow: /forgot\nDisallow: /reset\nDisallow: /verify\n\nSitemap: {config.PUBLIC_BASE}/sitemap.xml\n")
+    return Response(body, media_type="text/plain")
+
+
+async def sitemap_xml(request: Request):
+    urls = "".join(f"<url><loc>{html.escape(config.PUBLIC_BASE + ('' if p == '/' else p))}</loc></url>" for p in PUBLIC_PATHS)
+    return Response('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+                    + urls + "</urlset>", media_type="application/xml")
 
 
 async def login_page(request: Request):
@@ -147,6 +256,11 @@ async def signup_page(request: Request):
     if current_user(request):
         return RedirectResponse("/dashboard", status_code=303)
     return page("signup.html")
+
+
+async def plain_page(request: Request):
+    name = request.url.path.strip("/")
+    return page({"report": "copyright"}.get(name, name) + ".html")
 
 
 async def app_page(request: Request):
@@ -164,6 +278,17 @@ async def project_page(request: Request):
 
 async def legal_page(request: Request):
     return page("terms.html" if request.url.path == "/terms" else "privacy.html")
+
+
+async def public_config(request: Request):
+    return JSONResponse({"turnstile_site_key": config.TURNSTILE_SITE_KEY if config.TURNSTILE_SECRET else "",
+                         "min_age": config.MIN_AGE, "link_policy": config.LINK_POLICY})
+
+
+async def security_txt(request: Request):
+    body = (f"Contact: mailto:{config.SECURITY_EMAIL}\nExpires: {time.strftime('%Y-%m-%dT00:00:00Z', time.gmtime(time.time() + 365 * 86400))}\n"
+            f"Preferred-Languages: en\nCanonical: {config.PUBLIC_BASE}/.well-known/security.txt\n")
+    return Response(body, media_type="text/plain")
 
 
 async def healthz(request: Request):
@@ -188,12 +313,167 @@ async def signup(request: Request):
         raise err(400, f"Use a password of at least {auth.MIN_PASSWORD} characters.")
     if db.get_user_by_email(email):
         raise err(409, "An account with that email already exists. Log in instead.")
+    if config.BLOCK_DISPOSABLE_EMAIL and auth.is_disposable(email):
+        raise err(400, "Use a permanent email address. Temporary inboxes can't be used to sign up.")
+    if not await run_in_threadpool(auth.captcha_ok, str(data.get("captcha", "")), ip):
+        raise err(400, "We couldn't confirm you're human. Reload the page and try again.")
+    if await run_in_threadpool(auth.password_is_breached, password):
+        raise err(400, "That password appears in known data breaches. Choose a different one.")
+    if data.get("agree") is not True:
+        raise err(400, f"Confirm that you are at least {config.MIN_AGE} years old and accept the Terms and Privacy Policy.")
     pw_hash = await run_in_threadpool(auth.hash_password, password)
-    user = db.create_user(uuid.uuid4().hex[:16], email, name, pw_hash)
+    user = db.create_user(uuid.uuid4().hex[:16], email, name, pw_hash, consented_at=time.time())
     auth.signup_throttle.fail(ip)
+    await send_verification(user)
     resp = JSONResponse({"user": public_user(user)})
     set_session(resp, auth.new_session(user["id"]))
     return resp
+
+
+async def send_verification(user: dict) -> None:
+    link = f"{config.PUBLIC_BASE}/verify?token={auth.new_email_token(user['id'], 'verify')}"
+    try:
+        await run_in_threadpool(mailer.send, user["email"], *mailer.verification_email(link))
+    except Exception as exc:   # a mail outage must not block sign-up; the customer can ask for a new link
+        print(f"[mail] could not send verification to {user['email']}: {exc}")
+
+
+async def resend_verification(request: Request):
+    user = require_user(request)
+    if user.get("email_verified"):
+        return JSONResponse({"ok": True})
+    key = f"verify|{user['id']}"
+    if auth.mail_throttle.blocked(key):
+        raise err(429, "We already sent several emails. Check your inbox and spam folder, or try again in an hour.")
+    auth.mail_throttle.fail(key)
+    await send_verification(user)
+    return JSONResponse({"ok": True})
+
+
+async def verify_email(request: Request):
+    data = await body_json(request)
+    user_id = auth.consume_email_token(data.get("token", ""), "verify")
+    if not user_id:
+        raise err(400, "This link has expired or was already used. Log in and ask for a new one.")
+    db.update_user(user_id, email_verified=1)
+    return JSONResponse({"ok": True})
+
+
+async def my_testimonial(request: Request):
+    user = require_user(request)
+    t = db.get_testimonial(user["id"])
+    return JSONResponse({"testimonial": t and {k: t[k] for k in ("name", "role", "quote", "status")},
+                         "eligible": db.done_project_count(user["id"]) > 0})
+
+
+async def save_testimonial(request: Request):
+    user = require_user(request)
+    data = await body_json(request)
+    if db.done_project_count(user["id"]) == 0:
+        raise err(403, "You can share your experience after your first set of clips is ready.")
+    name, role = str(data.get("name", "")).strip()[:60], str(data.get("role", "")).strip()[:60]
+    quote = " ".join(str(data.get("quote", "")).split())
+    if not name:
+        raise err(400, "Add the name you want shown next to your quote.")
+    if not 20 <= len(quote) <= 400:
+        raise err(400, "Keep your quote between 20 and 400 characters.")
+    if data.get("consent") is not True:
+        raise err(400, "Tick the box to confirm we may publish your quote with your name.")
+    db.save_testimonial(user["id"], name, role, quote)
+    return JSONResponse({"ok": True, "status": "pending"})
+
+
+async def remove_testimonial(request: Request):
+    user = require_user(request)
+    db.delete_testimonial(user["id"])
+    return JSONResponse({"ok": True})
+
+
+async def public_testimonials(request: Request):
+    return JSONResponse({"testimonials": [{k: t[k] for k in ("name", "role", "quote")}
+                                          for t in db.list_testimonials("approved", 6)]})
+
+
+async def trends_json(request: Request):
+    user = require_user(request)
+    plan = billing.plan_of(user)
+    owned = {a["external_id"] for a in db.list_accounts(user["id"]) if a["platform"] == "youtube"}
+    data = trends.for_plan(plan, request.query_params.get("region", "").upper(), owned, config.LINK_POLICY)
+    data["link_policy"] = config.LINK_POLICY
+    data["plan"] = user["plan"]
+    return JSONResponse(data)
+
+
+async def status_json(request: Request):
+    snap = await run_in_threadpool(status.snapshot)
+    return JSONResponse(snap, headers={"Cache-Control": "public, max-age=10"})
+
+
+report_throttle = auth.Throttle(limit=5, window=3600)
+
+
+async def submit_report(request: Request):
+    """Copyright and abuse reports. Public on purpose: rights holders are not customers."""
+    data = await body_json(request)
+    ip = f"report|{client_ip(request)}"
+    if report_throttle.blocked(ip):
+        raise err(429, "Too many reports from this network. Try again later.")
+    if not await run_in_threadpool(auth.captcha_ok, str(data.get("captcha", "")), client_ip(request)):
+        raise err(400, "We couldn't confirm you're human. Reload the page and try again.")
+    kind = "copyright" if data.get("kind") == "copyright" else "abuse"
+    url, details = str(data.get("url", "")).strip()[:500], str(data.get("details", "")).strip()[:4000]
+    name, email = str(data.get("name", "")).strip()[:120], auth.normalize_email(data.get("email", ""))
+    if not url or len(details) < 20:
+        raise err(400, "Tell us where the content is and what the problem is (at least a couple of sentences).")
+    if not auth.valid_email(email):
+        raise err(400, "Enter an email address we can reach you at.")
+    if kind == "copyright" and not (data.get("good_faith") is True and data.get("accurate") is True and name):
+        raise err(400, "A copyright notice needs your name and both confirmations.")
+    report_throttle.fail(ip)
+    rid = uuid.uuid4().hex[:12]
+    db.create_report(rid, kind, url, name, email, details)
+    body = (f"New {kind} report {rid}\n\nFrom: {name} <{email}>\nContent: {url}\n\n{details}\n\n"
+            f"Review with: python -m app.admin reports")
+    try:
+        await run_in_threadpool(mailer.send, config.ABUSE_EMAIL, f"[Verticlip] {kind} report {rid}", body)
+    except Exception as exc:
+        print(f"[mail] could not forward report {rid}: {exc}")
+    return JSONResponse({"ok": True, "id": rid})
+
+
+async def forgot_password(request: Request):
+    data = await body_json(request)
+    email = auth.normalize_email(data.get("email", ""))
+    ip_key, mail_key = f"forgot|{client_ip(request)}", f"forgot|{email}"
+    if auth.mail_throttle.blocked(ip_key) or auth.mail_throttle.blocked(mail_key):
+        raise err(429, "Too many requests. Try again in an hour.")
+    auth.mail_throttle.fail(ip_key)
+    user = db.get_user_by_email(email) if auth.valid_email(email) else None
+    if user:
+        auth.mail_throttle.fail(mail_key)
+        link = f"{config.PUBLIC_BASE}/reset?token={auth.new_email_token(user['id'], 'reset')}"
+        try:
+            await run_in_threadpool(mailer.send, user["email"], *mailer.reset_email(link))
+        except Exception as exc:
+            print(f"[mail] could not send reset to {user['email']}: {exc}")
+    # The same answer whether or not the address has an account, so this can't be used to find customers.
+    return JSONResponse({"ok": True})
+
+
+async def reset_password(request: Request):
+    data = await body_json(request)
+    password = str(data.get("password", ""))
+    if len(password) < auth.MIN_PASSWORD or len(password) > 200:
+        raise err(400, f"Use a password of at least {auth.MIN_PASSWORD} characters.")
+    if await run_in_threadpool(auth.password_is_breached, password):
+        raise err(400, "That password appears in known data breaches. Choose a different one.")
+    user_id = auth.consume_email_token(data.get("token", ""), "reset")
+    if not user_id:
+        raise err(400, "This link has expired or was already used. Ask for a new reset link.")
+    pw_hash = await run_in_threadpool(auth.hash_password, password)
+    db.update_user(user_id, pw_hash=pw_hash, email_verified=1)   # they proved they own the inbox
+    db.delete_user_sessions(user_id)                             # sign out every device
+    return JSONResponse({"ok": True})
 
 
 async def login(request: Request):
@@ -208,7 +488,17 @@ async def login(request: Request):
     if not user or not ok:
         auth.login_throttle.fail(key)
         raise err(401, "Wrong email or password.")
-    auth.login_throttle.clear(key)
+    if not user.get("totp_enabled"):
+        auth.login_throttle.clear(key)
+    if user.get("suspended"):
+        raise err(403, "This account is suspended. Contact support if you think this is a mistake.")
+    if user.get("totp_enabled"):
+        code = str(data.get("code", "")).strip()
+        if not code:
+            return JSONResponse({"detail": "Enter the 6-digit code from your authenticator app.", "two_factor": True}, status_code=401)
+        if not await run_in_threadpool(auth.second_factor_ok, user, code):
+            auth.login_throttle.fail(key)
+            return JSONResponse({"detail": "That code isn't right. Try the newest one, or use a recovery code.", "two_factor": True}, status_code=401)
     resp = JSONResponse({"user": public_user(user)})
     set_session(resp, auth.new_session(user["id"]))
     return resp
@@ -230,11 +520,97 @@ async def me(request: Request):
     })
 
 
+async def delete_me(request: Request):
+    user = require_user(request)
+    data = await body_json(request)
+    ok = await run_in_threadpool(auth.verify_password, str(data.get("password", "")), user["pw_hash"])
+    if not ok:
+        raise err(403, "That password is not right.")
+    if db.active_project_count(user["id"]):
+        raise err(409, "Cancel your running projects before deleting your account.")
+    if user.get("stripe_subscription"):
+        try:
+            await run_in_threadpool(billing.cancel_subscription, user["stripe_subscription"])
+        except billing.BillingError as exc:
+            raise err(502, str(exc))
+    logo = (user.get("brand") or {}).get("logo")
+    for pid in db.delete_user_everything(user["id"]):
+        shutil.rmtree(pipeline.project_dir(pid), ignore_errors=True)
+    if logo:
+        (config.MEDIA_DIR / "brand" / Path(logo).name).unlink(missing_ok=True)
+    resp = JSONResponse({"ok": True})
+    resp.delete_cookie(auth.SESSION_COOKIE, path="/")
+    return resp
+
+
+async def twofa_setup(request: Request):
+    import segno
+    user = require_user(request)
+    if user.get("totp_enabled"):
+        raise err(409, "Two-step login is already on.")
+    secret = auth.new_totp_secret()
+    db.update_user(user["id"], totp_secret=secret, totp_enabled=0, totp_last=0)
+    from urllib.parse import quote as q
+    uri = f"otpauth://totp/Verticlip:{q(user['email'])}?secret={secret}&issuer=Verticlip&algorithm=SHA1&digits=6&period=30"
+    svg = segno.make(uri, error="m").svg_inline(scale=5, border=2, dark="#000", light="#fff")
+    return JSONResponse({"secret": secret, "uri": uri, "qr_svg": svg})
+
+
+async def twofa_enable(request: Request):
+    user = require_user(request)
+    data = await body_json(request)
+    if user.get("totp_enabled") or not user.get("totp_secret"):
+        raise err(409, "Start set-up first.")
+    step = auth.check_totp(user["totp_secret"], str(data.get("code", "")))
+    if not step:
+        raise err(400, "That code isn't right. Check that your phone's clock is correct and try the newest code.")
+    codes = auth.new_recovery_codes()
+    db.update_user(user["id"], totp_enabled=1, totp_last=step, recovery_codes=json.dumps([auth._hash_code(c) for c in codes]))
+    return JSONResponse({"recovery_codes": codes})
+
+
+async def twofa_disable(request: Request):
+    user = require_user(request)
+    data = await body_json(request)
+    if not user.get("totp_enabled"):
+        return JSONResponse({"ok": True})
+    if not await run_in_threadpool(auth.verify_password, str(data.get("password", "")), user["pw_hash"]):
+        raise err(403, "That password is not right.")
+    if not await run_in_threadpool(auth.second_factor_ok, user, str(data.get("code", ""))):
+        raise err(400, "That code isn't right.")
+    db.update_user(user["id"], totp_enabled=0, totp_secret=None, recovery_codes="[]", totp_last=0)
+    return JSONResponse({"ok": True})
+
+
+export_throttle = auth.Throttle(limit=5, window=3600)
+
+
+async def export_me(request: Request):
+    user = require_user(request)
+    if export_throttle.blocked(user["id"]):
+        raise err(429, "You can download your data a few times an hour. Try again later.")
+    export_throttle.fail(user["id"])
+    data = db.export_user(user["id"])
+    for p in data["projects"]:
+        t = pipeline.project_dir(p["id"]) / "transcript.json"
+        if t.is_file():
+            try:
+                p["transcript"] = " ".join(w.get("word", "") for w in json.loads(t.read_text()))
+            except (ValueError, OSError):
+                pass
+    data["exported_at"] = time.time()
+    data["note"] = "Video files are not included here. Download clips from each project page while they are available."
+    return Response(json.dumps(data, indent=2), media_type="application/json",
+                    headers={"Content-Disposition": 'attachment; filename="verticlip-data.json"'})
+
+
 async def update_me(request: Request):
     user = require_user(request)
     data = await body_json(request)
     if "name" in data:
         db.update_user(user["id"], name=str(data["name"]).strip()[:80])
+    if isinstance(data.get("notify_email"), bool):
+        db.update_user(user["id"], notify_email=int(data["notify_email"]))
     return JSONResponse({"user": public_user(db.get_user(user["id"]))})
 
 
@@ -244,6 +620,8 @@ async def change_password(request: Request):
     if not await run_in_threadpool(auth.verify_password, str(data.get("current", "")), user["pw_hash"]):
         raise err(400, "Your current password is wrong.")
     new = str(data.get("new", ""))
+    if await run_in_threadpool(auth.password_is_breached, new):
+        raise err(400, "That password appears in known data breaches. Choose a different one.")
     if len(new) < auth.MIN_PASSWORD or len(new) > 200:
         raise err(400, f"Use a password of at least {auth.MIN_PASSWORD} characters.")
     db.update_user(user["id"], pw_hash=await run_in_threadpool(auth.hash_password, new))
@@ -274,7 +652,9 @@ async def list_projects(request: Request):
 
 async def create_project(request: Request):
     user = require_user(request)
+    require_verified(user)
     data = await body_json(request)
+    require_rights(data.get("rights"))
     _check_ai()
     _check_parallel(user)
     try:
@@ -282,6 +662,7 @@ async def create_project(request: Request):
         info = await run_in_threadpool(media.remote_info, url)
     except media.MediaError as exc:
         raise err(400, str(exc))
+    enforce_link_policy(user, info)
     if info["is_live"]:
         raise err(400, "Live streams can be clipped once they have ended.")
     if info["duration"]:
@@ -301,12 +682,14 @@ async def create_project(request: Request):
 
 async def upload_project(request: Request):
     user = require_user(request)
+    require_verified(user)
     _check_ai()
     _check_parallel(user)
     limit = config.MAX_UPLOAD_MB * 1024 * 1024
     if int(request.headers.get("content-length") or 0) > limit + 1024 * 1024:
         raise err(413, f"Files can be up to {config.MAX_UPLOAD_MB} MB.")
-    form = await request.form(max_files=1, max_fields=5, max_part_size=64 * 1024)
+    form = await request.form(max_files=1, max_fields=6, max_part_size=64 * 1024)
+    require_rights(form.get("rights"))
     upload = form.get("file")
     if upload is None or not hasattr(upload, "read"):
         raise err(400, "Choose a video file.")
@@ -620,18 +1003,42 @@ async def stripe_webhook(request: Request):
 
 routes = [
     Route("/", landing),
+    Route("/how-it-works", landing),
+    Route("/features", landing),
+    Route("/pricing", landing),
+    Route("/faq", landing),
+    Route("/robots.txt", robots_txt),
+    Route("/sitemap.xml", sitemap_xml),
     Route("/login", login_page),
     Route("/signup", signup_page),
+    Route("/copyright", plain_page),
+    Route("/report", plain_page),
+    Route("/refunds", plain_page),
+    Route("/support", plain_page),
+    Route("/forgot", plain_page),
+    Route("/reset", plain_page),
+    Route("/verify", plain_page),
     Route("/terms", legal_page),
     Route("/privacy", legal_page),
     Route("/healthz", healthz),
+    Route("/.well-known/security.txt", security_txt),
     Route("/project/{pid:str}", project_page),
     Route("/api/auth/signup", signup, methods=["POST"]),
     Route("/api/auth/login", login, methods=["POST"]),
     Route("/api/auth/logout", logout, methods=["POST"]),
+    Route("/api/auth/forgot", forgot_password, methods=["POST"]),
+    Route("/api/auth/reset", reset_password, methods=["POST"]),
+    Route("/api/auth/verify", verify_email, methods=["POST"]),
+    Route("/api/auth/resend", resend_verification, methods=["POST"]),
     Route("/api/me", me, methods=["GET"]),
     Route("/api/me", update_me, methods=["PATCH"]),
+    Route("/api/me", delete_me, methods=["DELETE"]),
+    Route("/api/me/export", export_me, methods=["GET"]),
     Route("/api/me/password", change_password, methods=["POST"]),
+    Route("/api/me/2fa/setup", twofa_setup, methods=["POST"]),
+    Route("/api/me/2fa/enable", twofa_enable, methods=["POST"]),
+    Route("/api/me/2fa/disable", twofa_disable, methods=["POST"]),
+    Route("/api/report", submit_report, methods=["POST"]),
     Route("/api/projects", list_projects, methods=["GET"]),
     Route("/api/projects", create_project, methods=["POST"]),
     Route("/api/projects/upload", upload_project, methods=["POST"]),
@@ -652,6 +1059,14 @@ routes = [
     Route("/auth/{platform:str}/callback", oauth_callback),
     Route("/api/publish", publish, methods=["POST"]),
     Route("/api/plans", plans),
+    Route("/api/config", public_config),
+    Route("/api/status", status_json),
+    Route("/api/trends", trends_json, methods=["GET"]),
+    Route("/status", plain_page),
+    Route("/api/testimonials", public_testimonials),
+    Route("/api/testimonial", my_testimonial, methods=["GET"]),
+    Route("/api/testimonial", save_testimonial, methods=["POST"]),
+    Route("/api/testimonial", remove_testimonial, methods=["DELETE"]),
     Route("/api/billing/checkout", checkout, methods=["POST"]),
     Route("/api/billing/portal", portal, methods=["POST"]),
     Route("/api/billing/webhook", stripe_webhook, methods=["POST"]),
@@ -664,10 +1079,41 @@ routes = [
 @contextlib.asynccontextmanager
 async def lifespan(app):
     config.MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+    if config.SECURE_COOKIES and not config.SECRET_KEY:
+        raise RuntimeError("Set SECRET_KEY before running on an https PUBLIC_BASE.")
+    if config.SECURE_COOKIES and not (config.LEGAL_ADDRESS and config.CONTACT_EMAIL != "support@localhost"):
+        raise RuntimeError("Set LEGAL_NAME, LEGAL_ADDRESS and CONTACT_EMAIL (and PRIVACY_EMAIL, ABUSE_EMAIL if different) "
+                           "before running on an https PUBLIC_BASE. The legal pages and takedown process need them.")
+    if config.SECURE_COOKIES and not mailer.configured():
+        raise RuntimeError("Set SMTP_HOST (and the other SMTP_* settings) before running on an https PUBLIC_BASE. "
+                           "Customers need email to confirm their address and reset a password.")
+    if config.LINK_POLICY == "owned" and not social.available()["youtube"]:
+        print("[warn] LINK_POLICY=owned needs Google sign-in (GOOGLE_CLIENT_ID/SECRET). Until it is set, no link can be pasted.")
     if not config.SECRET_KEY:
         print("[warn] SECRET_KEY is not set. Social account connections are disabled until it is.")
     worker.start(pipeline.run_project)
+    janitor.start()
+    status.start()
+    trends.start()
     yield
+
+
+def _scrub(event, hint):
+    """Keep the error and stack trace, drop everything that could identify a customer."""
+    event.pop("user", None)
+    req = event.get("request") or {}
+    for key in ("cookies", "headers", "data", "query_string", "env"):
+        req.pop(key, None)
+    event.pop("breadcrumbs", None)
+    return event
+
+
+if config.SENTRY_DSN:
+    try:
+        import sentry_sdk
+        sentry_sdk.init(dsn=config.SENTRY_DSN, send_default_pii=False, traces_sample_rate=0, before_send=_scrub)
+    except ImportError:
+        print("[warn] SENTRY_DSN is set but sentry-sdk is not installed.")
 
 
 app = Starlette(

@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Plan & billing · Verticlip</title>
 <link rel="icon" href="/assets/verticlip-logo.svg" />
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="preload" href="/static/fonts/SchibstedGrotesk-latin.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="stylesheet" href="/static/fonts/fonts.css" />
 <link rel="stylesheet" href="/static/app.css" />
+<script>try{var t=localStorage.getItem("vc-theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body data-shell="app" data-page="billing">
 <main>
@@ -40,6 +40,7 @@
     "Animated captions, fill and fit layouts",
     p.watermark ? "Small “Made with Verticlip” mark" : "No watermark",
     ...(p.brand_logo ? ["Your logo on every clip"] : []),
+    `Trend finder: top ${p.trend_items} videos${p.trend_items >= 50 ? " in 4 regions" : ""}`,
     "Publish to YouTube and TikTok",
   ];
 
@@ -62,10 +63,11 @@
         else if (!me.billing) action = `<button class="btn" disabled>Coming soon</button>`;
         else if (me.user.has_subscription) action = `<button class="btn" data-portal>Switch to ${esc(p.name)}</button>`;
         else action = `<button class="btn" data-plan="${key}">Upgrade to ${esc(p.name)}</button>`;
-        return `<section class="card plan${key === "pro" ? " featured" : ""}">
-          ${key === "pro" ? `<span class="pill run tag">Most popular</span>` : ""}
+        return `<section class="card plan${key === "studio" ? " featured" : ""}">
+          ${key === "studio" ? `<span class="pill run tag">Best value</span>` : ""}
           <h3>${esc(p.name)}</h3>
           <div class="price">$${p.price}<small> / month</small></div>
+          <p class="muted" style="margin-top:-6px;font-size:13.5px;min-height:1.4em">${p.price ? (p.price / p.minutes * 100).toFixed(1) + "\u00a2 per minute" : ""}</p>
           <ul>${FEATURES(p).map((f) => `<li>${esc(f)}</li>`).join("")}</ul>
           ${action}
         </section>`;

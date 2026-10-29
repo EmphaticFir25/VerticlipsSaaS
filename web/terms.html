@@ -4,63 +4,75 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Terms of Service · Verticlip</title>
+<meta name="description" content="The terms for using Verticlip." />
 <link rel="icon" href="/assets/verticlip-logo.svg" />
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="preload" href="/static/fonts/SchibstedGrotesk-latin.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="stylesheet" href="/static/fonts/fonts.css" />
 <link rel="stylesheet" href="/static/app.css" />
 <style>
   .doc { max-width: 760px; margin: 0 auto; padding: 40px 22px 90px; }
   .doc .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
   .doc h1 { font-size: 38px; margin-bottom: 6px; }
   .doc h2 { font-size: 20px; margin: 34px 0 10px; }
-  .doc p, .doc li { color: #c9c9d2; }
+  .doc p, .doc li { color: var(--muted); }
   .doc p + p { margin-top: 10px; }
   .doc ul { padding-left: 20px; display: grid; gap: 6px; }
-  .doc a.u { color: var(--volt); text-decoration: underline; }
+  .doc p a, .doc li a, .doc td a { color: var(--volt); text-decoration: underline; }
+  .doc table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 10px; }
+  .doc th, .doc td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); color: var(--muted); }
+  .doc th { color: var(--text); font-weight: 600; }
+  .doc form .field { margin-top: 14px; }
+  .doc .check { display: flex; gap: 10px; align-items: flex-start; margin-top: 14px; color: var(--muted); }
+  .doc .note-box { padding: 14px 16px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); margin-top: 14px; }
 </style>
+<script>try{var t=localStorage.getItem("vc-theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
 <div class="doc">
-  <div class="top"><a class="brand" href="/" style="padding:0" id="b"></a><nav class="muted" style="display:flex;gap:18px;font-weight:600;font-size:14px"><a href="/terms">Terms</a><a href="/privacy">Privacy</a></nav></div>
+  <div class="top"><a class="brand" href="/" style="padding:0" id="b"></a><nav class="muted" style="display:flex;gap:16px;font-weight:600;font-size:14px;flex-wrap:wrap"><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/copyright">Copyright</a><a href="/support">Support</a><a href="/status">Status</a></nav></div>
   <h1>Terms of Service</h1>
-  <p class="faint">Last updated: October 28, 2026</p>
+  <p class="faint">Last updated: October 29, 2026</p>
 
-  <p>These Terms govern your use of Verticlip ("Verticlip," "we," "us"), a web service that turns long videos into short vertical clips and, when you ask, uploads them to YouTube and TikTok accounts you connect. By creating an account you agree to these Terms. If you do not agree, do not use Verticlip.</p>
+  <p>These Terms govern your use of Verticlip, a web service operated by {{LEGAL_NAME}} ("Verticlip," "we," "us"), {{LEGAL_ADDRESS}}. It turns long videos into short vertical clips and, when you ask, uploads them to YouTube and TikTok accounts you connect. By creating an account you agree to these Terms and our <a href="/privacy">Privacy Policy</a>. If you do not agree, do not use Verticlip.</p>
   <h2>1. The service</h2>
-  <p>Verticlip transcribes videos you provide, uses AI to pick and score moments, renders clips with captions, and uploads the clips you select. Features may change over time.</p>
+  <p>Verticlip transcribes videos you provide, uses AI to pick and score moments and write titles, renders clips with captions, and uploads the clips you select. Features may change over time.</p>
   <h2>2. Accounts</h2>
-  <p>You must be at least 13 years old, or the minimum age required in your country, and meet the requirements of any platform you connect. Keep your password secure. You are responsible for activity on your Verticlip account and connected accounts.</p>
-  <h2>3. Plans and payment</h2>
-  <p>Each plan includes a monthly allowance of source-video minutes. Minutes are counted when a video starts processing and are returned if processing fails or you cancel. Unused minutes do not roll over. Paid plans renew monthly through Stripe until you cancel from the billing page; cancellation takes effect at the end of the paid period. Prices may change with notice before your next renewal.</p>
+  <p>You must be at least {{MIN_AGE}} years old and meet the requirements of any platform you connect. Give us a real email address, keep your password secure, and tell us if you suspect misuse. You are responsible for activity on your account and connected accounts.</p>
+  <h2>3. Plans, payment and cancellation</h2>
+  <p>Each plan includes a monthly allowance of source-video minutes. Minutes are counted when a video starts processing and are returned if processing fails or you cancel. Unused minutes do not roll over. Paid plans renew automatically every month and are charged to your payment method through Stripe until you cancel. You can cancel at any time from the billing page, and cancellation takes effect at the end of the paid period. We will give notice before a price change takes effect on your next renewal. Prices are shown before tax where tax applies. See our <a href="/refunds">refund policy</a>.</p>
   <h2>4. Your content and rights</h2>
-  <p>Only process videos you own or have permission to use. You keep ownership of your content and give Verticlip permission to process it only to provide the service to you. You are solely responsible for having the rights to every video, logo and clip you use, and for making sure each clip complies with copyright law and the rules of every platform where you publish it.</p>
-  <h2>5. Acceptable use</h2>
+  <p>Only process videos you own or have permission to use, and you confirm this each time you start a project. You keep ownership of your content and give us a limited licence to host, process and transform it only to provide the service to you. You are solely responsible for having the rights to every video, logo and clip you use, and for making sure each clip follows copyright law and the rules of every platform where you publish it.</p>
+  <h2>5. Copyright and repeat infringers</h2>
+  <p>We respond to notices of alleged infringement under our <a href="/copyright">copyright policy</a>. We remove content that is reported and found to infringe, and we suspend accounts of repeat infringers (three notices).</p>
+  <h2>6. Acceptable use</h2>
   <p>You agree not to use Verticlip to:</p>
   <ul>
     <li>infringe anyone's copyright, trademark, privacy or other rights;</li>
     <li>publish content that is unlawful, hateful, harassing, sexually explicit involving minors, or misleading;</li>
     <li>impersonate another person or create deceptive endorsements;</li>
-    <li>spam platforms, evade their limits or policies, or create accounts to get around their rules;</li>
-    <li>access other users' data, probe or overload the service, or resell it without permission.</li>
+    <li>spam platforms, evade their limits or policies, or create accounts to get around their rules or our limits;</li>
+    <li>access other users' data, probe or overload the service, scrape it, or resell it without permission.</li>
   </ul>
-  <p>We may suspend or close accounts that break these Terms.</p>
-  <h2>6. Third-party services</h2>
-  <p>Verticlip relies on third parties, including OpenAI (transcription), Anthropic (clip scoring), Stripe (payments), Google (YouTube) and TikTok. Your use of those platforms is governed by their own terms, and we are not responsible for their availability or decisions, including removal of content or accounts.</p>
-  <h2>7. Disclaimers</h2>
-  <p>Verticlip is provided "as is" and "as available," without warranties of any kind. Virality scores are AI estimates, not predictions. We do not guarantee that clips will perform well, that uploads will succeed, or that the service will be uninterrupted. AI-generated titles, captions and selections can be wrong, so review them before publishing.</p>
-  <h2>8. Limitation of liability</h2>
-  <p>To the fullest extent permitted by law, Verticlip is not liable for indirect, incidental, special or consequential damages, or for loss of data, revenue or accounts. Our total liability for any claim is limited to the amount you paid us in the 12 months before the claim, or $50 if you paid nothing.</p>
-  <h2>9. Indemnity</h2>
+  <p>We may suspend or close accounts that break these Terms and may remove content we reasonably believe is unlawful or infringing.</p>
+  <h2>7. AI features</h2>
+  <p>Clip selections, virality scores, titles, hooks, captions and hashtags are generated by AI and can be wrong or inappropriate. Scores are estimates, not predictions. You are responsible for reviewing everything before you publish it, and for disclosing AI involvement where a platform or law requires it.</p>
+  <h2>8. Third-party services</h2>
+  <p>The trend finder uses YouTube API Services. By using it you also agree to be bound by the <a href="https://www.youtube.com/t/terms" rel="noopener">YouTube Terms of Service</a>. Seeing a video in the trend finder gives you no right to copy or clip it. Verticlip relies on third parties, including OpenAI (transcription), Anthropic (clip scoring), Stripe (payments), Google (YouTube) and TikTok. Your use of those platforms is governed by their own terms, and we are not responsible for their availability or decisions, including removal of content or accounts.</p>
+  <h2>9. Disclaimers</h2>
+  <p>Verticlip is provided "as is" and "as available," without warranties of any kind, to the extent the law allows. We do not guarantee that clips will perform well, that uploads will succeed, or that the service will be uninterrupted. We delete projects automatically after {{PROJECT_DAYS}} days, so download clips you want to keep.</p>
+  <h2>10. Limitation of liability</h2>
+  <p>To the fullest extent permitted by law, Verticlip is not liable for indirect, incidental, special or consequential damages, or for loss of data, revenue or accounts. Our total liability for any claim is limited to the amount you paid us in the 12 months before the claim, or $50 if you paid nothing. Nothing in these Terms limits liability that cannot be limited by law, or your mandatory consumer rights where you live.</p>
+  <h2>11. Indemnity</h2>
   <p>You agree to defend and hold Verticlip harmless from claims arising from your content, your use of the service, or your violation of these Terms or of any platform's rules.</p>
-  <h2>10. Termination</h2>
-  <p>You can stop using Verticlip at any time and ask us to delete your account. We may suspend or end access at any time, including for violations of these Terms.</p>
-  <h2>11. Governing law</h2>
-  <p>These Terms are governed by the laws of Massachusetts, United States, without regard to conflict-of-law rules. Disputes will be resolved in the state or federal courts located in Massachusetts.</p>
-  <h2>12. Changes</h2>
-  <p>We may update these Terms. Continued use after changes take effect means you accept them.</p>
-  <h2>13. Contact</h2>
-  <p><a class="u" href="mailto:jthomaselder6@gmail.com">jthomaselder6@gmail.com</a></p>
+  <h2>12. Termination</h2>
+  <p>You can stop using Verticlip at any time and delete your account from Settings. We may suspend or end access for violations of these Terms or where required by law. When an account ends, we delete its data as described in the Privacy Policy.</p>
+  <h2>13. Governing law</h2>
+  <p>These Terms are governed by the laws of {{JURISDICTION}}, without regard to conflict-of-law rules, and disputes will be resolved in the courts located there, except that consumers keep any right to bring a claim in their home country that the law gives them.</p>
+  <h2>14. Changes</h2>
+  <p>We may update these Terms. We will announce material changes in the app or by email, and continued use after they take effect means you accept them.</p>
+  <h2>15. Contact</h2>
+  <p><a href="mailto:{{CONTACT_EMAIL}}">{{CONTACT_EMAIL}}</a></p>
+
 </div>
 <script src="/static/app.js"></script>
 <script>VC.$("#b").innerHTML = `${VC.ICON.logo}<span>Verticlip</span>`;</script>

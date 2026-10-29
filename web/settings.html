@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Settings · Verticlip</title>
 <link rel="icon" href="/assets/verticlip-logo.svg" />
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="preload" href="/static/fonts/SchibstedGrotesk-latin.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="stylesheet" href="/static/fonts/fonts.css" />
 <link rel="stylesheet" href="/static/app.css" />
+<script>try{var t=localStorage.getItem("vc-theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body data-shell="app" data-page="settings">
 <main>
-  <header class="page-head"><div><h1>Settings</h1><p>Your profile and password.</p></div></header>
+  <header class="page-head"><div><h1>Settings</h1><p>Your profile, notifications and data.</p></div></header>
   <div class="stack" style="max-width:560px">
     <form class="card pad" id="profile">
       <h2 style="font-size:18px;margin-bottom:16px">Profile</h2>
@@ -27,12 +27,105 @@
       <p class="muted" style="font-size:13px;margin-top:8px">Changing it signs you out everywhere else.</p>
       <button class="btn" style="margin-top:18px">Change password</button>
     </form>
+    <div class="card pad" id="tf">
+      <h2 style="font-size:18px;margin-bottom:6px">Two-step login</h2>
+      <p class="muted" style="font-size:14px">Ask for a code from an authenticator app (1Password, Google Authenticator, Authy) when you log in, so a stolen password isn't enough.</p>
+      <div id="tfOff" hidden><button class="btn ghost" id="tfStart" style="margin-top:16px">Turn on</button></div>
+      <div id="tfSetup" hidden style="margin-top:16px">
+        <p style="font-size:14px">1. Scan this with your authenticator app, or enter the key by hand.</p>
+        <div id="tfQr" style="width:180px;margin:12px 0;border-radius:12px;overflow:hidden;background:#fff"></div>
+        <p class="muted" style="font-size:13px;word-break:break-all">Key: <code id="tfKey"></code></p>
+        <form id="tfEnable"><div class="field" style="margin-top:14px"><label for="tfCode">2. Enter the 6-digit code it shows</label><input class="input" id="tfCode" inputmode="numeric" autocomplete="one-time-code" required /></div><button class="btn" style="margin-top:14px">Confirm and turn on</button></form>
+      </div>
+      <div id="tfCodes" hidden style="margin-top:16px">
+        <p style="font-size:14px"><b>Save these recovery codes.</b> Each works once if you lose your phone. They won't be shown again.</p>
+        <pre id="tfCodeList" style="margin:12px 0;padding:14px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);font-size:14px;line-height:1.7"></pre>
+        <button class="btn ghost" id="tfDone">I saved them</button>
+      </div>
+      <form id="tfOn" hidden style="margin-top:16px">
+        <p class="pill ok" style="display:inline-block;margin-bottom:10px">On</p>
+        <div class="field"><label for="tfPw">Password</label><input class="input" id="tfPw" type="password" autocomplete="current-password" required /></div>
+        <div class="field"><label for="tfOffCode">Current code or a recovery code</label><input class="input" id="tfOffCode" inputmode="numeric" autocomplete="one-time-code" required /></div>
+        <button class="btn ghost" style="margin-top:14px">Turn off</button>
+      </form>
+    </div>
+    <div class="card pad">
+      <h2 style="font-size:18px;margin-bottom:6px">Notifications</h2>
+      <label class="check" style="display:flex;gap:10px;align-items:flex-start;margin-top:12px;color:var(--muted)"><input type="checkbox" id="notify" style="margin-top:3px" /><span>Email me when a project finishes processing.</span></label>
+    </div>
+    <form class="card pad" id="tm">
+      <h2 style="font-size:18px;margin-bottom:6px">Share your experience</h2>
+      <p class="muted" style="font-size:14px" id="tmHint">Liked Verticlip? A short quote helps others decide. We only publish it after you agree below and we approve it.</p>
+      <div id="tmBody" hidden>
+        <div class="field" style="margin-top:14px"><label for="tmQuote">Your quote</label><textarea class="input" id="tmQuote" rows="3" maxlength="400" style="height:auto;padding:12px 14px"></textarea></div>
+        <div class="field"><label for="tmName">Name to show</label><input class="input" id="tmName" maxlength="60" /></div>
+        <div class="field"><label for="tmRole">What you do (optional)</label><input class="input" id="tmRole" maxlength="60" placeholder="e.g. podcast host" /></div>
+        <label class="check" style="display:flex;gap:10px;align-items:flex-start;margin-top:14px;font-size:13.5px;color:var(--muted)"><input type="checkbox" id="tmOk" style="margin-top:3px" /><span>I agree Verticlip may publish this quote with the name above on its website. I can remove it any time here.</span></label>
+        <p class="muted" id="tmStatus" style="font-size:13px;margin-top:10px"></p>
+        <div style="display:flex;gap:10px;margin-top:14px"><button class="btn">Submit quote</button><button type="button" class="btn ghost" id="tmDel" hidden>Remove my quote</button></div>
+      </div>
+    </form>
+    <div class="card pad">
+      <h2 style="font-size:18px;margin-bottom:6px">Your data</h2>
+      <p class="muted" style="font-size:14px">Download a copy of everything stored about your account: profile, projects, clips and transcripts. We delete projects automatically after {{PROJECT_DAYS}} days and original videos after {{SOURCE_DAYS}} days.</p>
+      <a class="btn ghost" href="/api/me/export" download style="margin-top:16px">Download my data</a>
+    </div>
+    <form class="card pad" id="del" style="border-color:rgba(217,45,32,.35)">
+      <h2 style="font-size:18px;margin-bottom:6px">Delete account</h2>
+      <p class="muted" style="font-size:14px">Permanently deletes your account, projects, clips, brand kit and connected accounts, and cancels any subscription. This can't be undone.</p>
+      <div class="field" style="margin-top:14px"><label for="delpw">Confirm with your password</label><input class="input" id="delpw" type="password" autocomplete="current-password" required /></div>
+      <button class="btn danger" style="margin-top:16px">Delete my account</button>
+    </form>
   </div>
 </main>
 <script src="/static/app.js"></script>
 <script>
   const { $, api, toast } = VC;
-  VC.loadMe().then((me) => { $("#name").value = me.user.name; $("#email").value = me.user.email; });
+  VC.loadMe().then((me) => { $("#name").value = me.user.name; $("#email").value = me.user.email; $("#notify").checked = me.user.notify_email; });
+  const tfShow = (id) => ["tfOff", "tfSetup", "tfCodes", "tfOn"].forEach((x) => $("#" + x).hidden = x !== id);
+  VC.loadMe().then((me) => tfShow(me.user.two_factor ? "tfOn" : "tfOff"));
+  $("#tfStart").onclick = async () => {
+    try { const d = await api("/api/me/2fa/setup", { method: "POST" }); $("#tfQr").innerHTML = d.qr_svg; $("#tfKey").textContent = d.secret; tfShow("tfSetup"); $("#tfCode").focus(); }
+    catch (err) { toast(err.message, true); }
+  };
+  $("#tfEnable").onsubmit = async (e) => {
+    e.preventDefault();
+    try { const d = await api("/api/me/2fa/enable", { method: "POST", body: { code: $("#tfCode").value } }); $("#tfCodeList").textContent = d.recovery_codes.join("\n"); tfShow("tfCodes"); }
+    catch (err) { toast(err.message, true); }
+  };
+  $("#tfDone").onclick = () => { $("#tfCodeList").textContent = ""; tfShow("tfOn"); toast("Two-step login is on"); };
+  $("#tfOn").onsubmit = async (e) => {
+    e.preventDefault();
+    try { await api("/api/me/2fa/disable", { method: "POST", body: { password: $("#tfPw").value, code: $("#tfOffCode").value } }); e.target.reset(); tfShow("tfOff"); toast("Two-step login is off"); }
+    catch (err) { toast(err.message, true); }
+  };
+  const tmLoad = () => api("/api/testimonial").then(({ testimonial: t, eligible }) => {
+    $("#tmBody").hidden = !eligible;
+    if (!eligible) $("#tmHint").textContent = "You can share your experience once your first set of clips is ready.";
+    if (t) { $("#tmQuote").value = t.quote; $("#tmName").value = t.name; $("#tmRole").value = t.role; $("#tmOk").checked = true;
+      $("#tmStatus").textContent = { pending: "Waiting for approval. It isn't public yet.", approved: "Published on the website.", rejected: "We didn't publish this one." }[t.status] || ""; }
+    $("#tmDel").hidden = !t;
+  }).catch(() => {});
+  tmLoad();
+  $("#tm").onsubmit = async (e) => {
+    e.preventDefault();
+    try { await api("/api/testimonial", { method: "POST", body: { quote: $("#tmQuote").value, name: $("#tmName").value, role: $("#tmRole").value, consent: $("#tmOk").checked } }); toast("Thanks. We'll review it."); tmLoad(); }
+    catch (err) { toast(err.message, true); }
+  };
+  $("#tmDel").onclick = async () => {
+    try { await api("/api/testimonial", { method: "DELETE" }); $("#tm").reset(); $("#tmStatus").textContent = ""; toast("Removed"); tmLoad(); }
+    catch (err) { toast(err.message, true); }
+  };
+  $("#notify").onchange = async (e) => {
+    try { await api("/api/me", { method: "PATCH", body: { notify_email: e.target.checked } }); toast("Saved"); }
+    catch (err) { toast(err.message, true); e.target.checked = !e.target.checked; }
+  };
+  $("#del").onsubmit = async (e) => {
+    e.preventDefault();
+    if (!confirm("Delete your account and all your data? This can't be undone.")) return;
+    try { await api("/api/me", { method: "DELETE", body: { password: $("#delpw").value } }); location.href = "/"; }
+    catch (err) { toast(err.message, true); }
+  };
   $("#profile").onsubmit = async (e) => {
     e.preventDefault();
     try { await api("/api/me", { method: "PATCH", body: { name: $("#name").value } }); toast("Saved"); VC.loadMe(true).then(VC.drawUsage); }

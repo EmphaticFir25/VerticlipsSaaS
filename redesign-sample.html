@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Verticlip · Redesign sample</title>
+<meta name="description" content="Sample redesign of the Verticlip landing page: one long video in, a week of shorts out." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0b0d12; --surface: #141821; --surface-2: #1b2030; --line: #262c3d;
+    --text: #f3f5fa; --muted: #9aa3b8; --faint: #6b7489;
+    --volt: #d4ff3a; --violet: #8b7cff; --mint: #9fffc9;
+    --radius: 20px;
+    --display: "Bricolage Grotesque", system-ui, sans-serif;
+    --body: "Hanken Grotesk", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #f7f8fc; --surface: #ffffff; --surface-2: #eef0f8; --line: #dde1ee;
+      --text: #12151f; --muted: #535d75; --faint: #7d869c; --volt: #5c7a00; --violet: #5b49e6; --mint: #0a8a5a;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html { scroll-behavior: smooth; }
+  body { background: var(--bg); color: var(--text); font: 16px/1.55 var(--body); overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+  a { color: inherit; text-decoration: none; }
+  h1, h2, h3 { font-family: var(--display); line-height: 1.05; letter-spacing: -.035em; }
+  .wrap { width: min(1160px, 100% - 32px); margin: 0 auto; }
+
+  /* buttons */
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 20px; border-radius: 12px; border: 0; cursor: pointer;
+    font: 700 15px var(--body); background: var(--volt); color: #10140a; transition: transform .15s, box-shadow .15s; }
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px -10px var(--volt); }
+  .btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); }
+  .btn.ghost:hover { box-shadow: none; border-color: var(--faint); }
+  .btn.lg { padding: 15px 26px; font-size: 16px; }
+
+  /* nav */
+  header.top { position: sticky; top: 0; z-index: 10; backdrop-filter: blur(14px); background: color-mix(in srgb, var(--bg) 78%, transparent); border-bottom: 1px solid var(--line); }
+  .nav { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+  .logo { display: flex; align-items: center; gap: 10px; font: 800 20px var(--display); letter-spacing: -.03em; }
+  .logo i { width: 26px; height: 26px; border-radius: 8px; background: linear-gradient(135deg, var(--volt), var(--violet)); display: block; }
+  .nav nav { display: flex; align-items: center; gap: 4px; }
+  .nav nav a:not(.btn) { padding: 8px 12px; color: var(--muted); font-weight: 600; font-size: 14.5px; border-radius: 10px; }
+  .nav nav a:not(.btn):hover { color: var(--text); }
+
+  /* hero */
+  .hero { position: relative; display: grid; grid-template-columns: 1.1fr .9fr; gap: 48px; align-items: center; padding: 72px 0 96px; }
+  .hero::before { content: ""; position: absolute; inset: -80px -30vw auto; height: 700px; z-index: -1;
+    background: radial-gradient(50% 60% at 25% 30%, color-mix(in srgb, var(--violet) 28%, transparent), transparent 70%),
+                radial-gradient(40% 50% at 85% 40%, color-mix(in srgb, var(--volt) 16%, transparent), transparent 70%); }
+  .eyebrow { display: inline-flex; gap: 8px; padding: 6px 12px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); color: var(--muted); font-size: 13px; font-weight: 600; }
+  .eyebrow b { color: var(--volt); }
+  .hero h1 { font-size: clamp(44px, 7vw, 84px); font-weight: 800; margin: 22px 0 20px; }
+  .hero h1 span { background: linear-gradient(95deg, var(--volt), var(--mint) 45%, var(--violet)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .lede { font-size: 19px; color: var(--muted); max-width: 33em; }
+  .linkbar { margin-top: 30px; max-width: 580px; display: flex; gap: 8px; padding: 8px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); }
+  .linkbar input { flex: 1; min-width: 0; background: none; border: 0; outline: 0; color: var(--text); font: 500 16px var(--body); padding: 0 10px; }
+  .linkbar:focus-within { border-color: var(--violet); }
+  .fine { margin-top: 12px; color: var(--faint); font-size: 13.5px; }
+  .proof { display: flex; gap: 28px; margin-top: 38px; flex-wrap: wrap; }
+  .proof b { display: block; font: 800 28px var(--display); letter-spacing: -.03em; }
+  .proof span { color: var(--faint); font-size: 13.5px; }
+
+  /* phone mock */
+  .stage { display: grid; place-items: center; }
+  .phones { position: relative; width: 340px; height: 520px; }
+  .phone { position: absolute; width: 200px; aspect-ratio: 9/16; border-radius: 26px; border: 1px solid var(--line); overflow: hidden;
+    box-shadow: 0 30px 60px -20px rgba(0,0,0,.55); background: linear-gradient(160deg, #3a2f66, #10141a 70%); }
+  .phone:nth-child(1) { left: 0; top: 40px; transform: rotate(-7deg); background: linear-gradient(160deg, #1f4d44, #10141a 70%); }
+  .phone:nth-child(2) { left: 70px; top: 0; z-index: 2; }
+  .phone:nth-child(3) { right: 0; top: 70px; transform: rotate(7deg); background: linear-gradient(160deg, #5a3a2a, #10141a 70%); }
+  .phone .score { position: absolute; top: 12px; left: 12px; padding: 4px 9px; border-radius: 999px; background: var(--volt); color: #10140a; font: 800 12px var(--body); }
+  .phone .cap { position: absolute; left: 10px; right: 10px; bottom: 56px; text-align: center; font: 800 20px/1.15 var(--display); color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,.6); }
+  .phone .cap em { font-style: normal; color: var(--volt); }
+  .phone .bar { position: absolute; left: 12px; right: 12px; bottom: 22px; height: 4px; border-radius: 4px; background: rgba(255,255,255,.2); }
+  .phone .bar::after { content: ""; position: absolute; inset: 0 55% 0 0; border-radius: 4px; background: var(--volt); animation: prog 4s linear infinite; }
+  @keyframes prog { from { right: 100%; } to { right: 0; } }
+
+  /* sections */
+  section.band { padding: 96px 0; border-top: 1px solid var(--line); }
+  .band h2 { font-size: clamp(32px, 4.4vw, 52px); font-weight: 800; max-width: 17ch; }
+  .band .intro { color: var(--muted); font-size: 17.5px; margin-top: 14px; max-width: 38em; }
+
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 44px; counter-reset: s; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 28px; transition: border-color .2s, transform .2s; }
+  .card:hover { border-color: color-mix(in srgb, var(--violet) 55%, var(--line)); transform: translateY(-3px); }
+  .steps .card::before { counter-increment: s; content: "0" counter(s); display: block; font: 800 15px var(--display); color: var(--volt); margin-bottom: 18px; }
+  .card h3 { font-size: 22px; margin-bottom: 8px; }
+  .card p { color: var(--muted); }
+
+  .bento { display: grid; grid-template-columns: repeat(6, 1fr); gap: 18px; margin-top: 44px; }
+  .bento .w3 { grid-column: span 3; } .bento .w2 { grid-column: span 2; }
+  .bento .card { display: flex; flex-direction: column; gap: 10px; min-height: 210px; }
+  .bento .viz { margin-top: auto; padding-top: 12px; }
+  .scores { display: flex; gap: 12px; }
+  .ring { --v: 80; width: 74px; height: 74px; border-radius: 50%; display: grid; place-items: center; position: relative;
+    background: conic-gradient(var(--c, var(--violet)) calc(var(--v) * 1%), var(--surface-2) 0); }
+  .ring::before { content: ""; position: absolute; inset: 7px; border-radius: 50%; background: var(--surface); }
+  .ring b { position: relative; font: 800 20px var(--display); }
+  .capdemo { text-align: center; padding: 18px; border-radius: 14px; background: linear-gradient(160deg, #2a2340, #10141a); font: 800 22px/1.2 var(--display); color: #fff; }
+  .capdemo em { font-style: normal; color: var(--volt); }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip { padding: 7px 14px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); font-weight: 600; font-size: 14px; }
+
+  /* pricing */
+  .toggle { display: inline-flex; margin-top: 26px; padding: 4px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); }
+  .toggle button { border: 0; background: none; color: var(--muted); font: 700 14px var(--body); padding: 8px 16px; border-radius: 9px; cursor: pointer; }
+  .toggle button[aria-pressed="true"] { background: var(--surface-2); color: var(--text); }
+  .plans { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 30px; align-items: stretch; }
+  .plan { display: flex; flex-direction: column; gap: 14px; position: relative; }
+  .plan.featured { border-color: var(--volt); background: linear-gradient(180deg, color-mix(in srgb, var(--volt) 9%, var(--surface)), var(--surface) 60%); }
+  .plan .tag { position: absolute; top: -12px; right: 22px; background: var(--volt); color: #10140a; font: 800 12px var(--body); padding: 4px 10px; border-radius: 999px; }
+  .price { font: 800 48px var(--display); letter-spacing: -.04em; }
+  .price small { font: 600 15px var(--body); color: var(--faint); letter-spacing: 0; }
+  .plan ul { list-style: none; padding: 0; display: grid; gap: 9px; color: var(--muted); margin-bottom: 8px; }
+  .plan li::before { content: "✓"; color: var(--volt); font-weight: 800; margin-right: 10px; }
+  .plan .btn { margin-top: auto; }
+
+  .faq { margin-top: 30px; display: grid; gap: 10px; max-width: 820px; }
+  details { padding: 18px 22px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); }
+  summary { cursor: pointer; font-weight: 700; font-size: 16.5px; list-style: none; display: flex; justify-content: space-between; gap: 12px; }
+  summary::after { content: "+"; color: var(--volt); font-size: 22px; line-height: 1; }
+  details[open] summary::after { content: "–"; }
+  details p { color: var(--muted); margin-top: 10px; }
+
+  .cta { text-align: center; padding: 76px 24px; border-radius: 30px; margin-bottom: 80px; border: 1px solid var(--line);
+    background: radial-gradient(70% 120% at 50% 0%, color-mix(in srgb, var(--volt) 18%, transparent), transparent 70%), var(--surface); }
+  .cta h2 { margin: 0 auto 14px; max-width: 16ch; font-size: clamp(32px, 4.4vw, 52px); font-weight: 800; }
+  .cta p { color: var(--muted); margin-bottom: 28px; }
+  footer { border-top: 1px solid var(--line); padding: 30px 0 50px; color: var(--faint); font-size: 14px; }
+  footer .wrap { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+
+  .reveal { opacity: 0; transform: translateY(18px); transition: opacity .6s, transform .6s; }
+  .reveal.in { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; transition: none; } .phone .bar::after { animation: none; } html { scroll-behavior: auto; } }
+
+  @media (max-width: 960px) {
+    .hero { grid-template-columns: 1fr; padding-top: 40px; }
+    .stage { order: -1; transform: scale(.82); margin: -30px 0; }
+    .steps, .plans { grid-template-columns: 1fr; }
+    .bento { grid-template-columns: 1fr; } .bento .w3, .bento .w2 { grid-column: auto; }
+    .nav nav a.hide-sm { display: none; }
+  }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap nav">
+    <a class="logo" href="#"><i></i>Verticlip</a>
+    <nav>
+      <a class="hide-sm" href="#how">How it works</a>
+      <a class="hide-sm" href="#features">Features</a>
+      <a class="hide-sm" href="#pricing">Pricing</a>
+      <a href="#">Log in</a>
+      <a class="btn" href="#">Start free</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <div>
+      <span class="eyebrow"><b>New</b> Scored by Claude · transcribed by Whisper</span>
+      <h1>One long video.<br><span>A week of shorts.</span></h1>
+      <p class="lede">Paste a podcast, stream or interview. Verticlip finds the moments people will actually watch, scores each one for virality, adds animated captions and sends them to YouTube Shorts and TikTok.</p>
+      <form class="linkbar" onsubmit="return false">
+        <label class="sr" for="u" hidden>Video link</label>
+        <input id="u" type="url" placeholder="Paste a video link" />
+        <button class="btn">Get free clips</button>
+      </form>
+      <p class="fine">30 free minutes every month. No card needed.</p>
+      <div class="proof">
+        <div><b>9:16</b><span>captioned &amp; cropped</span></div>
+        <div><b>0–100</b><span>virality score per clip</span></div>
+        <div><b>1 click</b><span>to publish</span></div>
+      </div>
+    </div>
+    <div class="stage" aria-hidden="true">
+      <div class="phones">
+        <div class="phone"><span class="score">▲ 78</span><div class="cap">WAIT FOR <em>IT</em></div><div class="bar"></div></div>
+        <div class="phone"><span class="score">▲ 94</span><div class="cap">NOBODY <em>TELLS</em> YOU</div><div class="bar"></div></div>
+        <div class="phone"><span class="score">▲ 88</span><div class="cap">THIS <em>CHANGED</em> IT</div><div class="bar"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" id="how">
+    <h2 class="reveal">From upload to posted in three steps</h2>
+    <p class="intro reveal">No timeline scrubbing. You review a ranked list of finished clips and publish the ones you like.</p>
+    <div class="steps">
+      <div class="card reveal"><h3>Drop in a video</h3><p>Paste a YouTube, Twitch, Vimeo or Kick link, or upload a file up to a few hours long.</p></div>
+      <div class="card reveal"><h3>AI finds the moments</h3><p>Whisper transcribes every word. Claude reads the whole conversation and picks self-contained moments with a hook and a payoff.</p></div>
+      <div class="card reveal"><h3>Review and publish</h3><p>Clips come back ranked by virality score. Download them or send them to your channels in one click.</p></div>
+    </div>
+  </section>
+
+  <section class="band" id="features">
+    <h2 class="reveal">Everything a short needs, done for you</h2>
+    <div class="bento">
+      <div class="card w3 reveal">
+        <h3>Virality score</h3>
+        <p>0–100 with a breakdown for hook, flow, value and trend. Post the strongest first.</p>
+        <div class="viz scores">
+          <div class="ring" style="--v:94;--c:var(--volt)"><b>94</b></div>
+          <div class="ring" style="--v:78"><b>78</b></div>
+          <div class="ring" style="--v:61;--c:var(--faint)"><b>61</b></div>
+        </div>
+      </div>
+      <div class="card w3 reveal">
+        <h3>Animated captions</h3>
+        <p>Word-by-word captions that light up as they're spoken, in your brand colour.</p>
+        <div class="viz"><div class="capdemo">MOST PEOPLE <em>NEVER</em> TRY</div></div>
+      </div>
+      <div class="card w2 reveal"><h3>Hook titles</h3><p>A punchy on-screen title for the first seconds, written from what's said in the clip.</p></div>
+      <div class="card w2 reveal"><h3>Fill or fit</h3><p>Crop to full-screen 9:16, or keep the whole frame on a blurred background.</p></div>
+      <div class="card w2 reveal"><h3>Brand kit</h3><p>Set caption style, colour and logo once. Every project uses them.</p></div>
+      <div class="card w3 reveal">
+        <h3>Publish to Shorts and TikTok</h3>
+        <p>Connect every channel you run. Each clip gets its own title, description and hashtags.</p>
+        <div class="viz chips"><span class="chip">▶ YouTube Shorts</span><span class="chip">♪ TikTok</span></div>
+      </div>
+      <div class="card w3 reveal"><h3>Ranked, not raw</h3><p>Clips start and end on full sentences, never mid-word, and never overlap. You get the best moments, not every moment.</p></div>
+    </div>
+  </section>
+
+  <section class="band" id="pricing">
+    <h2 class="reveal">Simple plans, billed by minutes of video</h2>
+    <div class="toggle" role="group" aria-label="Billing period">
+      <button aria-pressed="true" data-m="1">Monthly</button>
+      <button aria-pressed="false" data-m="0">Yearly · save 20%</button>
+    </div>
+    <div class="plans">
+      <section class="card plan reveal">
+        <h3>Free</h3>
+        <div class="price">$0<small>/mo</small></div>
+        <ul><li>30 minutes a month</li><li>Up to 6 clips per video</li><li>“Made with Verticlip” mark</li></ul>
+        <a class="btn ghost" href="#">Start free</a>
+      </section>
+      <section class="card plan featured reveal">
+        <span class="tag">Most popular</span>
+        <h3>Pro</h3>
+        <div class="price"><span data-p="19">$19</span><small>/mo</small></div>
+        <ul><li>600 minutes a month</li><li>Up to 15 clips per video</li><li>Your own logo, no watermark</li></ul>
+        <a class="btn" href="#">Go Pro</a>
+      </section>
+      <section class="card plan reveal">
+        <h3>Studio</h3>
+        <div class="price"><span data-p="49">$49</span><small>/mo</small></div>
+        <ul><li>2,400 minutes a month</li><li>Up to 25 clips per video</li><li>Your own logo, no watermark</li></ul>
+        <a class="btn ghost" href="#">Go Studio</a>
+      </section>
+    </div>
+  </section>
+
+  <section class="band">
+    <h2 class="reveal">Questions</h2>
+    <div class="faq">
+      <details><summary>Which sites can I paste a link from?</summary><p>YouTube, Twitch, Vimeo, Kick and most public video pages. You can also upload a file directly.</p></details>
+      <details><summary>What counts as a minute?</summary><p>Minutes of source video, rounded up. Failed or cancelled projects are refunded automatically.</p></details>
+      <details><summary>Can I cancel any time?</summary><p>Yes. Manage or cancel from the billing page. You keep your plan until the end of the paid period.</p></details>
+    </div>
+  </section>
+
+  <div class="cta reveal">
+    <h2>Turn your next video into a week of shorts</h2>
+    <p>30 free minutes every month. No card needed.</p>
+    <a class="btn lg" href="#">Get free clips</a>
+  </div>
+</main>
+
+<footer><div class="wrap"><span>© Verticlip</span><span><a href="#">Terms</a> · <a href="#">Privacy</a></span></div></footer>
+
+<script>
+  // scroll reveal
+  const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }), { threshold: .12 });
+  document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
+  // monthly / yearly toggle (yearly = 20% off, shown per month)
+  document.querySelectorAll(".toggle button").forEach((b) => b.addEventListener("click", () => {
+    document.querySelectorAll(".toggle button").forEach((x) => x.setAttribute("aria-pressed", x === b));
+    const monthly = b.dataset.m === "1";
+    document.querySelectorAll("[data-p]").forEach((el) => { el.textContent = "$" + (monthly ? el.dataset.p : Math.round(el.dataset.p * 0.8)); });
+  }));
+</script>
+</body>
+</html>

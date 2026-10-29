@@ -4,10 +4,47 @@ services:
     build: .
     image: verticlip-saas:latest
     restart: unless-stopped
-    ports:
-      - "33215:33214"
     env_file:
       - path: .env
         required: true
     volumes:
       - ./data:/app/data
+    # No published ports: only Caddy (below) can reach the app, over the private compose network.
+    expose:
+      - "33214"
+
+  backup:
+    image: verticlip-saas:latest
+    container_name: verticlip-backup
+    restart: unless-stopped
+    depends_on:
+      - verticlip-saas
+    env_file:
+      - path: .env
+        required: true
+    environment:
+      BACKUP_DIR: /backups
+    command: ["python", "-m", "app.backup", "loop"]
+    volumes:
+      - ./data:/app/data
+      - ./backups:/backups
+
+  caddy:
+    image: caddy:2
+    container_name: verticlip-caddy
+    restart: unless-stopped
+    depends_on:
+      - verticlip-saas
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN in .env, for example clips.example.com}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

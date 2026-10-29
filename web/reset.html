@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Choose a new password · Verticlip</title>
+<link rel="icon" href="/assets/verticlip-logo.svg" />
+<link rel="preload" href="/static/fonts/SchibstedGrotesk-latin.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="stylesheet" href="/static/fonts/fonts.css" />
+<link rel="stylesheet" href="/static/app.css" />
+<script>try{var t=localStorage.getItem("vc-theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+<div class="auth">
+  <div class="form-side">
+    <form id="form" novalidate>
+      <a class="brand" href="/" style="padding:0" id="brandLink"></a>
+      <h1>Choose a new password</h1>
+      <p class="muted" style="margin-bottom:24px">Use at least 8 characters. You'll be signed out everywhere else.</p>
+      <div class="field"><label for="password">New password</label><input class="input" id="password" type="password" autocomplete="new-password" required minlength="8" /></div>
+      <button class="btn lg" id="submit">Save password</button>
+      <p class="form-err" id="err" role="alert"></p>
+      <p class="alt"><a href="/forgot">Need a new link?</a></p>
+    </form>
+  </div>
+  <div class="art" aria-hidden="true">
+    <div class="stack-art">
+      <div class="mini"><div class="bg"></div><span class="badge-score mid">▲ 78</span><div class="cap">WAIT FOR <em>IT</em></div></div>
+      <div class="mini"><div class="bg"></div><span class="badge-score hi">▲ 94</span><div class="cap">NOBODY <em>TELLS</em> YOU</div></div>
+      <div class="mini"><div class="bg"></div><span class="badge-score hi">▲ 88</span><div class="cap">THIS <em>CHANGED</em> IT</div></div>
+    </div>
+  </div>
+</div>
+<script src="/static/app.js"></script>
+<script>
+  const { $, api, ICON } = VC;
+  $("#brandLink").innerHTML = `${ICON.logo}<span>Verticlip</span>`;
+  const token = new URLSearchParams(location.search).get("token") || "";
+  history.replaceState(null, "", location.pathname);   // keep the token out of the address bar and history
+  if (!token) $("#err").textContent = "This link is missing its code. Ask for a new reset link.";
+  $("#form").onsubmit = async (e) => {
+    e.preventDefault(); $("#err").textContent = "";
+    const btn = $("#submit"); btn.disabled = true;
+    try {
+      await api("/api/auth/reset", { method: "POST", body: { token, password: $("#password").value } });
+      location.href = "/login";
+    } catch (err) { $("#err").textContent = err.message; btn.disabled = false; }
+  };
+</script>
+</body>
+</html>

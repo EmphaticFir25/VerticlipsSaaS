@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Refund policy · Verticlip</title>
+<meta name="description" content="Cancellations and refunds for Verticlip subscriptions." />
+<link rel="icon" href="/assets/verticlip-logo.svg" />
+<link rel="preload" href="/static/fonts/SchibstedGrotesk-latin.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="stylesheet" href="/static/fonts/fonts.css" />
+<link rel="stylesheet" href="/static/app.css" />
+<style>
+  .doc { max-width: 760px; margin: 0 auto; padding: 40px 22px 90px; }
+  .doc .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
+  .doc h1 { font-size: 38px; margin-bottom: 6px; }
+  .doc h2 { font-size: 20px; margin: 34px 0 10px; }
+  .doc p, .doc li { color: var(--muted); }
+  .doc p + p { margin-top: 10px; }
+  .doc ul { padding-left: 20px; display: grid; gap: 6px; }
+  .doc p a, .doc li a, .doc td a { color: var(--volt); text-decoration: underline; }
+  .doc table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 10px; }
+  .doc th, .doc td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); color: var(--muted); }
+  .doc th { color: var(--text); font-weight: 600; }
+  .doc form .field { margin-top: 14px; }
+  .doc .check { display: flex; gap: 10px; align-items: flex-start; margin-top: 14px; color: var(--muted); }
+  .doc .note-box { padding: 14px 16px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); margin-top: 14px; }
+</style>
+<script>try{var t=localStorage.getItem("vc-theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+<div class="doc">
+  <div class="top"><a class="brand" href="/" style="padding:0" id="b"></a><nav class="muted" style="display:flex;gap:16px;font-weight:600;font-size:14px;flex-wrap:wrap"><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/copyright">Copyright</a><a href="/support">Support</a><a href="/status">Status</a></nav></div>
+  <h1>Refund policy</h1>
+  <p class="faint">Last updated: October 29, 2026</p>
+
+  <p>Plain terms, so there are no surprises.</p>
+  <h2>Cancelling</h2>
+  <p>You can cancel any paid plan at any time from Plan &amp; billing. You keep your plan until the end of the period you paid for, and you are not charged again.</p>
+  <h2>Refunds</h2>
+  <ul>
+    <li>If you were charged for a renewal you did not intend, or by mistake, contact us within 14 days of the charge and we will refund it in full if you used few or no minutes.</li>
+    <li>If processing fails or you cancel a project, the minutes are returned to your allowance automatically.</li>
+    <li>Otherwise, payments for a period you already used are not refundable, except where the law says they are.</li>
+  </ul>
+  <h2>Your rights where you live</h2>
+  <p>If you are a consumer in the EU, UK or another place with a statutory cancellation right, those rights apply. By asking us to start processing right away, you agree the service is performed immediately and, once it has been used, you may lose the right to withdraw for the used part, as the law allows.</p>
+  <h2>How to ask</h2>
+  <p>Email <a href="mailto:{{CONTACT_EMAIL}}">{{CONTACT_EMAIL}}</a> from the address on your account, with the date of the charge.</p>
+
+</div>
+<script src="/static/app.js"></script>
+<script>VC.$("#b").innerHTML = `${VC.ICON.logo}<span>Verticlip</span>`;</script>
+</body>
+</html>

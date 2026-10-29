@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Confirm your email · Verticlip</title>
+<link rel="icon" href="/assets/verticlip-logo.svg" />
+<link rel="preload" href="/static/fonts/SchibstedGrotesk-latin.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="stylesheet" href="/static/fonts/fonts.css" />
+<link rel="stylesheet" href="/static/app.css" />
+<script>try{var t=localStorage.getItem("vc-theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+<div class="auth">
+  <div class="form-side">
+    <form id="form" onsubmit="return false">
+      <a class="brand" href="/" style="padding:0" id="brandLink"></a>
+      <h1 id="title">Confirming your email…</h1>
+      <p class="muted" id="msg" style="margin-top:10px"></p>
+      <a class="btn lg" id="go" href="/dashboard" hidden style="margin-top:22px">Go to your projects</a>
+    </form>
+  </div>
+  <div class="art" aria-hidden="true">
+    <div class="stack-art">
+      <div class="mini"><div class="bg"></div><span class="badge-score mid">▲ 78</span><div class="cap">WAIT FOR <em>IT</em></div></div>
+      <div class="mini"><div class="bg"></div><span class="badge-score hi">▲ 94</span><div class="cap">NOBODY <em>TELLS</em> YOU</div></div>
+      <div class="mini"><div class="bg"></div><span class="badge-score hi">▲ 88</span><div class="cap">THIS <em>CHANGED</em> IT</div></div>
+    </div>
+  </div>
+</div>
+<script src="/static/app.js"></script>
+<script>
+  const { $, api, ICON } = VC;
+  $("#brandLink").innerHTML = `${ICON.logo}<span>Verticlip</span>`;
+  const token = new URLSearchParams(location.search).get("token") || "";
+  history.replaceState(null, "", location.pathname);
+  (async () => {
+    try {
+      if (!token) throw new Error("This link is missing its code. Log in and ask for a new one.");
+      await api("/api/auth/verify", { method: "POST", body: { token } });
+      $("#title").textContent = "Email confirmed"; $("#msg").textContent = "You can start making clips now."; $("#go").hidden = false;
+    } catch (err) {
+      $("#title").textContent = "That link didn't work"; $("#msg").textContent = err.message;
+      $("#go").textContent = "Log in"; $("#go").href = "/login"; $("#go").hidden = false;
+    }
+  })();
+</script>
+</body>
+</html>

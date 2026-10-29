@@ -4,3 +4,7 @@ __pycache__/
 *.pyc
 .pytest_cache/
 client_secret*.json
+.env.*
+!.env.example
+*.pem
+*.key

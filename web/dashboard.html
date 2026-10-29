@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Projects · Verticlip</title>
 <link rel="icon" href="/assets/verticlip-logo.svg" />
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Hanken+Grotesk:wght@400;500;600;700&family=Poppins:wght@700;800&display=swap" rel="stylesheet" />
+<link rel="preload" href="/static/fonts/SchibstedGrotesk-latin.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="stylesheet" href="/static/fonts/fonts.css" />
 <link rel="stylesheet" href="/static/app.css" />
+<script>try{var t=localStorage.getItem("vc-theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body data-shell="app" data-page="dashboard">
 <main>
@@ -21,6 +21,7 @@
       <button role="tab" aria-selected="false" data-tab="upload" id="tabUpload">Upload file</button>
     </div>
 
+    <p class="note" id="policyNote" hidden style="margin-bottom:14px">Links are limited to YouTube videos from a channel you have connected. <a href="/accounts">Connect a channel</a>, or use <b>Upload file</b> for anything else.</p>
     <form id="linkForm" class="linkbar" autocomplete="off">
       <svg class="lead" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>
       <label class="sr" for="urlInput">Video link</label>
@@ -37,6 +38,8 @@
       <input type="file" id="fileInput" accept="video/*" class="sr" />
       <div class="upbar" id="upbar" hidden><div class="meter"><div id="upMeter" style="width:0"></div></div><p class="muted" id="upText" style="margin-top:8px;font-size:13px"></p></div>
     </div>
+
+    <label class="check" style="display:flex;gap:10px;align-items:flex-start;margin:4px 0 18px;font-size:13.5px;color:var(--muted)"><input type="checkbox" id="rights" style="margin-top:3px" /><span>I own this video or have permission to clip it. <a href="/copyright" style="text-decoration:underline">Copyright policy</a></span></label>
 
     <div class="opts">
       <div>
@@ -118,16 +121,18 @@
     $("#linkForm").hidden = up; $("#uploadPane").hidden = !up;
   });
   $("#dropIcon").innerHTML = ICON.upload;
+  fetch("/api/config").then((r) => r.json()).then((c) => { $("#policyNote").hidden = c.link_policy !== "owned"; }).catch(() => {});
 
   // ---------- start from a link ----------
   $("#linkForm").onsubmit = async (e) => {
     e.preventDefault();
     const url = $("#urlInput").value.trim();
     if (!url) return;
+    if (!$("#rights").checked) { toast("Confirm that you own this video or have permission to clip it.", true); return; }
     const btn = $("#goBtn");
     btn.disabled = true; btn.textContent = "Checking link…";
     try {
-      const { project } = await api("/api/projects", { method: "POST", body: { url, settings: settings() } });
+      const { project } = await api("/api/projects", { method: "POST", body: { url, rights: true, settings: settings() } });
       location.href = `/project/${project.id}`;
     } catch (err) {
       toast(err.message, true);
@@ -138,8 +143,10 @@
   // ---------- start from an upload ----------
   function uploadFile(file) {
     if (!file) return;
+    if (!$("#rights").checked) { toast("Confirm that you own this video or have permission to clip it.", true); return; }
     if (!file.type.startsWith("video/") && !/\.(mp4|mov|mkv|webm|m4v|avi)$/i.test(file.name)) { toast("Choose a video file.", true); return; }
     const fd = new FormData();
+    fd.append("rights", "true");
     fd.append("settings", JSON.stringify(settings()));
     fd.append("file", file);
     const xhr = new XMLHttpRequest();
@@ -190,7 +197,14 @@
       const { projects } = await api("/api/projects");
       $("#projCount").textContent = projects.length ? `${projects.length} total` : "";
       $("#grid").innerHTML = projects.length ? projects.map(card).join("")
-        : `<div class="empty" style="grid-column:1/-1"><h3>No projects yet</h3><p>Paste a video link above to make your first clips.</p></div>`;
+        : `<div class="empty" style="grid-column:1/-1;text-align:left;max-width:560px;margin-inline:auto"><h3>Make your first clips</h3>
+            <ol style="margin:14px 0 0;padding-left:20px;display:grid;gap:8px;color:var(--muted)">
+              <li id="obVerify" hidden><b style="color:var(--text)">Confirm your email.</b> Use the link we sent you. It unlocks clip making.</li>
+              <li><b style="color:var(--text)">Paste a video link</b> or upload a file above. Public videos with clear speech work best, and you confirm you have the rights.</li>
+              <li>Review the ranked clips. Edit titles, then download or publish.</li>
+              <li><a href="/accounts" style="text-decoration:underline">Connect YouTube or TikTok</a> to publish in one click. This part is optional.</li>
+            </ol></div>`;
+      VC.loadMe().then((me) => { const li = $("#obVerify"); if (li) li.hidden = !me.user.verification_required; });
       clearTimeout(timer);
       if (projects.some((p) => p.status === "queued" || p.status === "running")) timer = setTimeout(loadProjects, 3000);
     } catch (err) { toast(err.message, true); }

@@ -1,5 +1,7 @@
 # Verticlip SaaS
 
+> Proprietary and confidential. See [LICENSE](LICENSE). Keep this repository private.
+
 Multi-user, cloud-powered version of Verticlip. Customers paste a link or upload a video, and Verticlip:
 
 1. downloads it (yt-dlp) or takes the upload,
@@ -18,12 +20,15 @@ with it at runtime.
 
 | Area | Details |
 |---|---|
-| Accounts | Email + password (scrypt), HTTP-only session cookies, login throttling, per-user data isolation |
+| Accounts | Email + password (scrypt), HTTP-only session cookies, email confirmation, password reset, optional authenticator-app two-step login with recovery codes, breached-password check, login throttling, per-user data isolation |
 | Plans | Free / Pro / Studio with monthly minute allowances, clip caps, parallel-job limits; minutes refunded on failure or cancel |
 | Billing | Stripe Checkout, Customer Portal, signed and de-duplicated webhooks |
 | Publishing | Per-customer Google and TikTok OAuth, tokens encrypted at rest (Fernet, keyed by `SECRET_KEY`), TikTok token refresh, chunked TikTok uploads, resumable YouTube uploads |
 | Jobs | Persistent queue in SQLite, worker threads, restart-safe (in-flight projects re-run), cancel and retry |
-| Safety | Anti-forgery header on every write, private-network links refused, upload size and type checks, security headers |
+| Safety | Anti-forgery header on every write, write rate limits, bot check (Turnstile), disposable-email block, private-network links refused, upload size and type checks, Content-Security-Policy and other security headers |
+| Privacy and compliance | Self-serve data export and account deletion, automatic data retention, age and terms consent, copyright/abuse reports with a three-strike takedown tool, self-hosted fonts, Terms/Privacy/Copyright/Refund/Support pages filled from your settings |
+| Trend finder | Trending videos from major YouTube channels (official YouTube Data API), ranked by views per hour, with one-click "Clip this" that goes through the same rights confirmation and link policy. List size and regions depend on the plan |
+| Operations | Encrypted nightly backups with verify and restore, optional Sentry, `/healthz`, `security.txt`, `robots.txt` and `sitemap.xml` |
 | UI | Landing page with pricing, dashboard, project page with ranked clips and score breakdowns, brand kit with live preview, social accounts, billing, settings |
 
 ```
@@ -50,8 +55,10 @@ cp .env.example .env      # fill in PUBLIC_BASE, SECRET_KEY, ANTHROPIC_API_KEY, 
 docker compose up -d --build
 ```
 
-It listens on port **33215** on the host (container port 33214), so it can sit next to the local Verticlip on the same machine.
-Put it behind HTTPS (Cloudflare Tunnel, Caddy, etc.) and set `PUBLIC_BASE` to that address. Google and TikTok only accept HTTPS redirect URIs.
+Set `DOMAIN` (for example `clips.example.com`) and `PUBLIC_BASE=https://clips.example.com` in `.env`, point the domain's DNS
+at the server, and open ports 80 and 443. The bundled Caddy container gets and renews the HTTPS certificate on its own, and the
+app itself is not published to the internet. Google and TikTok only accept HTTPS redirect URIs.
+On an `https://` `PUBLIC_BASE` the app refuses to start without `SECRET_KEY` and the `SMTP_*` email settings.
 
 Everything (database, uploads, clips) lives in `./data`. Back that folder up.
 
@@ -84,9 +91,56 @@ pytest
 The tests run a real server against fake Whisper and Claude endpoints, render real clips with ffmpeg, and check
 login, plan limits, per-customer isolation, Stripe signatures and the brand kit.
 
+## Operator tools
+
+```bash
+docker compose exec verticlip-saas python -m app.admin reports               # open copyright and abuse reports
+docker compose exec verticlip-saas python -m app.admin takedown <project_id> <report_id>
+docker compose exec verticlip-saas python -m app.admin suspend user@example.com
+docker compose exec verticlip-saas python -m app.admin delete-user user@example.com
+docker compose exec backup python -m app.backup verify /backups/<file>.bak    # prove a backup is readable
+```
+
+Customer quotes only appear on the website after the customer consents in Settings and you approve them:
+
+```bash
+docker compose exec verticlip-saas python -m app.admin testimonials           # quotes waiting for review
+docker compose exec verticlip-saas python -m app.admin approve <id>           # publish   (or: reject <id>)
+```
+
+The public status page at `/status` runs real checks (database, workers, ffmpeg, transcription, scoring, email, disk) and keeps a
+30-day history. To post a notice on it:
+
+```bash
+docker compose exec verticlip-saas python -m app.admin incident open degraded "Slow processing" "Queues are longer than usual."
+docker compose exec verticlip-saas python -m app.admin incident resolve <id>
+```
+
+It is served by the app, so also point an outside uptime monitor at `/healthz`.
+
+Takedowns remove the project, add a strike to its owner (three strikes suspend the account) and email them.
+
+## Before you launch
+
+Work through [docs/LAUNCH_CHECKLIST.md](docs/LAUNCH_CHECKLIST.md): legal review, DMCA agent registration, tax, platform
+verification, email DNS records, a tested backup restore, and spend limits. See also
+[docs/EMAIL_DELIVERABILITY.md](docs/EMAIL_DELIVERABILITY.md) and [docs/INCIDENT_RESPONSE.md](docs/INCIDENT_RESPONSE.md).
+
+## Keeping it private and secure
+
+- **Repository:** keep it **private** (GitHub → Settings → General → Danger Zone → Change visibility). Only the server
+  code in `app/` runs your logic; the browser only ever receives `web/` and `assets/`.
+- **Keys are yours, not the customer's.** The Anthropic, OpenAI/Whisper, Google, TikTok and Stripe credentials live only in
+  `.env` on your server. Customers never enter or see them, and no API route returns them.
+- **Never commit `.env`** (it is git-ignored and excluded from the Docker image). Rotate any key that was ever pasted in chat,
+  an issue or a commit. Set `SECRET_KEY` before going live; the app refuses to start on an https `PUBLIC_BASE` without it.
+- **Network:** the app has no published port. Only the Caddy container can reach it, which matters because the login and
+  sign-up throttles trust the forwarded client address.
+- **Data:** `./data` holds password hashes, uploads, and encrypted social tokens. Keep it off public storage and back it up.
+- **Billing:** set a monthly spend limit on your Anthropic and OpenAI accounts so a bug or abuse can't run up a bill.
+
 ## Scaling notes
 
 This is built to run as **one container** with SQLite and local disk, which is fine for a launch. When you outgrow it:
 move clips to S3/R2 with signed URLs, swap SQLite for Postgres, and run the worker as its own process. The job
-code in `pipeline.py` doesn't depend on the web layer, so it moves over unchanged. Password reset by email and admin
-tooling are not built yet.
+code in `pipeline.py` doesn't depend on the web layer, so it moves over unchanged. Admin tooling is not built yet.
