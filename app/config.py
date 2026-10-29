@@ -74,7 +74,7 @@ STRIPE_PRICE_STUDIO = _env("STRIPE_PRICE_STUDIO")
 PLANS = {
     "free": {"name": "Free", "price": 0, "minutes": _int("FREE_MINUTES", 30),
              "max_clips": 6, "watermark": True, "brand_logo": False},
-    "pro": {"name": "Pro", "price": _int("PRO_PRICE_USD", 19), "minutes": _int("PRO_MINUTES", 300),
+    "pro": {"name": "Pro", "price": _int("PRO_PRICE_USD", 19), "minutes": _int("PRO_MINUTES", 600),
             "max_clips": 15, "watermark": False, "brand_logo": True},
     "studio": {"name": "Studio", "price": _int("STUDIO_PRICE_USD", 49), "minutes": _int("STUDIO_MINUTES", 1200),
                "max_clips": 25, "watermark": False, "brand_logo": True},
