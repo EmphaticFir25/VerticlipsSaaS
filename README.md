@@ -1,5 +1,7 @@
 # Verticlip SaaS
 
+> Proprietary and confidential. See [LICENSE](LICENSE). Keep this repository private.
+
 Multi-user, cloud-powered version of Verticlip. Customers paste a link or upload a video, and Verticlip:
 
 1. downloads it (yt-dlp) or takes the upload,
@@ -83,6 +85,19 @@ pytest
 
 The tests run a real server against fake Whisper and Claude endpoints, render real clips with ffmpeg, and check
 login, plan limits, per-customer isolation, Stripe signatures and the brand kit.
+
+## Keeping it private and secure
+
+- **Repository:** keep it **private** (GitHub → Settings → General → Danger Zone → Change visibility). Only the server
+  code in `app/` runs your logic; the browser only ever receives `web/` and `assets/`.
+- **Keys are yours, not the customer's.** The Anthropic, OpenAI/Whisper, Google, TikTok and Stripe credentials live only in
+  `.env` on your server. Customers never enter or see them, and no API route returns them.
+- **Never commit `.env`** (it is git-ignored and excluded from the Docker image). Rotate any key that was ever pasted in chat,
+  an issue or a commit. Set `SECRET_KEY` before going live; the app refuses to start on an https `PUBLIC_BASE` without it.
+- **Network:** the container port is bound to `127.0.0.1`, so only your reverse proxy (Caddy, Cloudflare Tunnel) can reach it.
+  This matters because the login and sign-up throttles trust the forwarded client address.
+- **Data:** `./data` holds password hashes, uploads, and encrypted social tokens. Keep it off public storage and back it up.
+- **Billing:** set a monthly spend limit on your Anthropic and OpenAI accounts so a bug or abuse can't run up a bill.
 
 ## Scaling notes
 

@@ -109,6 +109,8 @@ class Guard(BaseHTTPMiddleware):
                 and path != "/api/billing/webhook" and request.headers.get(CSRF_HEADER) != "1"):
             return JSONResponse({"detail": "Missing request header."}, status_code=403)
         resp = await call_next(request)
+        if path.startswith("/api/"):
+            resp.headers.setdefault("Cache-Control", "no-store")
         resp.headers.setdefault("X-Content-Type-Options", "nosniff")
         resp.headers.setdefault("X-Frame-Options", "DENY")
         resp.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
@@ -664,6 +666,8 @@ routes = [
 @contextlib.asynccontextmanager
 async def lifespan(app):
     config.MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+    if config.SECURE_COOKIES and not config.SECRET_KEY:
+        raise RuntimeError("Set SECRET_KEY before running on an https PUBLIC_BASE.")
     if not config.SECRET_KEY:
         print("[warn] SECRET_KEY is not set. Social account connections are disabled until it is.")
     worker.start(pipeline.run_project)

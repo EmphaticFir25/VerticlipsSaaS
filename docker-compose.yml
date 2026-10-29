@@ -5,7 +5,7 @@ services:
     image: verticlip-saas:latest
     restart: unless-stopped
     ports:
-      - "33215:33214"
+      - "127.0.0.1:33215:33214"  # reachable only by the reverse proxy on this machine
     env_file:
       - path: .env
         required: true

@@ -5,3 +5,6 @@ tests
 __pycache__
 .pytest_cache
 client_secret*.json
+.env.*
+*.pem
+*.key
