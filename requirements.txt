@@ -1,0 +1,8 @@
+starlette>=0.41
+uvicorn[standard]>=0.30
+python-multipart>=0.0.9
+requests>=2.32
+cryptography>=42
+python-dotenv>=1.0
+yt-dlp>=2025.1.1
+# System requirements (installed by the Dockerfile): ffmpeg with libass, Python 3.11+

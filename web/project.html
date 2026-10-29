@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Project · Verticlip</title>
+<link rel="icon" href="/assets/verticlip-logo.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Hanken+Grotesk:wght@400;500;600;700&family=Poppins:wght@700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/static/app.css" />
+</head>
+<body data-shell="app" data-page="dashboard">
+<main>
+  <a class="back" href="/dashboard">← All projects</a>
+  <header class="proj-head">
+    <div style="min-width:0">
+      <h1 id="title">Loading…</h1>
+      <div class="src" id="src"></div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span class="pill" id="statusPill"></span>
+      <button class="btn danger sm" id="delBtn" hidden>Delete</button>
+    </div>
+  </header>
+
+  <section class="card progress-card" id="progress" hidden>
+    <div class="top">
+      <b id="progMsg">Starting…</b>
+      <button class="btn ghost sm" id="cancelBtn">Cancel</button>
+    </div>
+    <div class="meter"><div id="progBar" style="width:2%"></div></div>
+    <ol class="steps" id="steps">
+      <li data-s="download">Get video</li>
+      <li data-s="transcribe">Transcribe</li>
+      <li data-s="score">Find moments</li>
+      <li data-s="render">Render clips</li>
+    </ol>
+    <p class="muted" style="margin-top:16px;font-size:13.5px">You can leave this page. Clips keep rendering and show up here as they finish.</p>
+  </section>
+
+  <section class="card pad" id="failed" hidden>
+    <h3 style="font-size:19px">This video couldn't be processed</h3>
+    <p class="muted" id="failMsg" style="margin:8px 0 18px"></p>
+    <button class="btn" id="retryBtn">Try again</button>
+  </section>
+
+  <div id="clipsWrap" hidden>
+    <div class="toolbar">
+      <h2 id="clipsTitle">Clips</h2>
+      <label class="check"><input type="checkbox" id="selAll" /> Select all</label>
+      <select class="select-sm" id="sortSel" aria-label="Sort clips">
+        <option value="score">Sort by virality</option>
+        <option value="time">Sort by timeline</option>
+      </select>
+    </div>
+    <div class="clips" id="clips"></div>
+    <div class="dock" id="dock" hidden>
+      <span id="selCount"></span>
+      <div style="display:flex;gap:8px">
+        <button class="btn quiet sm" id="clearSel">Clear</button>
+        <button class="btn sm" id="pubSel">Publish selected</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div class="modal" id="pubModal" hidden role="dialog" aria-modal="true" aria-labelledby="pubTitle">
+  <div class="box">
+    <h3 id="pubTitle">Publish clips</h3>
+    <p class="muted" id="pubSub"></p>
+    <div class="list" id="pubList"></div>
+    <div class="foot">
+      <button class="btn quiet" id="pubCancel">Cancel</button>
+      <button class="btn" id="pubGo">Publish</button>
+    </div>
+  </div>
+</div>
+
+<script src="/static/app.js"></script>
+<script>
+  const { $, $$, esc, api, toast, fmtDur, timeAgo, tier, ICON } = VC;
+  const pid = location.pathname.split("/").pop();
+  const ORDER = ["download", "transcribe", "score", "render"];
+  const STATUS = { queued: ["Queued", "run"], running: ["Processing", "run"], done: ["Ready", "ok"], error: ["Failed", "bad"], cancelled: ["Cancelled", "bad"] };
+  const PUB = { queued: "Queued", uploading: "Uploading…", done: "Published", failed: "Failed" };
+  const st = { project: null, clips: [], accounts: [], sel: new Set(), sort: "score", sig: "", pubTargets: [] };
+  let timer = null;
+
+  function drawHead(p, queuePos) {
+    document.title = `${p.title || "Project"} · Verticlip`;
+    $("#title").textContent = p.title || "Untitled video";
+    $("#src").textContent = [p.source_kind === "upload" ? "Uploaded file" : p.source_url,
+      p.duration ? fmtDur(p.duration) : "", timeAgo(p.created)].filter(Boolean).join(" · ");
+    const [label, cls] = STATUS[p.status] || ["", ""];
+    const pill = $("#statusPill"); pill.textContent = label; pill.className = `pill ${cls}`;
+    const busy = p.status === "queued" || p.status === "running";
+    $("#delBtn").hidden = busy;
+    $("#progress").hidden = !busy;
+    $("#failed").hidden = !(p.status === "error" || p.status === "cancelled");
+    if (busy) {
+      $("#progMsg").textContent = p.status === "queued"
+        ? (queuePos > 1 ? `In line: ${queuePos - 1} video${queuePos > 2 ? "s" : ""} ahead of yours` : "Starting…")
+        : p.message || "Working…";
+      $("#progBar").style.width = Math.max(2, Number(p.progress) || 0) + "%";
+      const idx = ORDER.indexOf(p.stage);
+      $$("#steps li").forEach((li, i) => { li.className = idx < 0 ? "" : i < idx ? "done" : i === idx ? "now" : ""; });
+    }
+    if (p.status === "error" || p.status === "cancelled") $("#failMsg").textContent = p.status === "cancelled" ? "You cancelled this project. Your minutes were not used." : p.message;
+  }
+
+  function subBar(label, v) {
+    return `<div class="subscore"><span>${label}<b>${Math.round(v || 0)}</b></span><div class="meter"><div style="width:${v || 0}%"></div></div></div>`;
+  }
+  function pubLines(c) {
+    if (!c.publishes?.length) return "";
+    const names = Object.fromEntries(st.accounts.map((a) => [a.id, `${a.platform === "youtube" ? "YouTube" : "TikTok"} · ${a.name}`]));
+    return `<div class="pubs">${c.publishes.map((p) => {
+      const link = (p.detail || "").match(/https:\/\/\S+/);
+      const cls = p.status === "done" ? "ok" : p.status === "failed" ? "bad" : "run";
+      return `<div><span class="pill ${cls}">${PUB[p.status] || p.status}</span><span>${esc(names[p.account_id] || p.platform)}</span>
+        ${link ? `<a href="${esc(link[0])}" target="_blank" rel="noopener">Open</a>` : p.status === "failed" || p.status === "done" ? `<span class="faint">${esc(p.detail)}</span>` : ""}</div>`;
+    }).join("")}</div>`;
+  }
+  function clipRow(c) {
+    const t = tier(c.score);
+    const s = c.scores || {};
+    const caption = [c.title, c.description, (c.hashtags || []).join(" ")].filter(Boolean).join("\n\n");
+    return `<article class="clip${st.sel.has(c.id) ? " sel" : ""}" data-id="${esc(c.id)}">
+      <div class="player">
+        <video src="${esc(c.video)}" poster="${esc(c.poster)}" controls playsinline preload="none"></video>
+        <span class="badge-score ${t}">▲ ${Math.round(c.score)}</span>
+        <input type="checkbox" class="pick" aria-label="Select clip" ${st.sel.has(c.id) ? "checked" : ""} />
+      </div>
+      <div class="clip-body">
+        <div class="clip-top">
+          <div class="score ${t}" style="--v:${Math.round(c.score)}"><b>${Math.round(c.score)}</b><small>/100</small></div>
+          <div class="ttl">
+            <h3 contenteditable="true" spellcheck="true" data-edit="title" title="Click to rename">${esc(c.title)}</h3>
+            <div class="when">${fmtDur(c.start)} – ${fmtDur(c.end)} · ${Math.round(c.duration)}s</div>
+          </div>
+        </div>
+        <div class="subs">${subBar("Hook", s.hook)}${subBar("Flow", s.flow)}${subBar("Value", s.value)}${subBar("Trend", s.trend)}</div>
+        ${c.reason ? `<div class="why"><b>Why it works</b>${esc(c.reason)}</div>` : ""}
+        ${(c.hashtags || []).length ? `<div class="tags">${c.hashtags.map((h) => `<span>${esc(h)}</span>`).join("")}</div>` : ""}
+        ${c.transcript ? `<details class="tx"><summary>Transcript</summary><p>${esc(c.transcript)}</p></details>` : ""}
+        ${pubLines(c)}
+        <div class="actions">
+          <a class="btn sm" href="${esc(c.download)}" download>${ICON.download} Download</a>
+          <button class="btn ghost sm" data-act="publish">${ICON.send} Publish</button>
+          <button class="btn ghost sm" data-act="copy" data-caption="${esc(caption)}">${ICON.copy} Copy caption</button>
+        </div>
+      </div>
+    </article>`;
+  }
+
+  function drawClips() {
+    const p = st.project;
+    const clips = [...st.clips].sort(st.sort === "time" ? (a, b) => a.start - b.start : (a, b) => b.score - a.score);
+    $("#clipsWrap").hidden = clips.length === 0;
+    $("#clipsTitle").textContent = `${clips.length} clip${clips.length === 1 ? "" : "s"}${p.status === "running" ? " so far" : ""}`;
+    // Only rebuild when clips change, so a playing video is not interrupted by polling.
+    const sig = JSON.stringify(clips.map((c) => [c.id, c.title, c.publishes])) + st.sort;
+    if (sig !== st.sig) {
+      const playing = $$("#clips video").find((v) => !v.paused);
+      if (!playing) { $("#clips").innerHTML = clips.map(clipRow).join(""); st.sig = sig; }
+    }
+    drawSel();
+  }
+  function drawSel() {
+    const n = st.sel.size;
+    $("#dock").hidden = n === 0;
+    $("#selCount").textContent = `${n} clip${n === 1 ? "" : "s"} selected`;
+    $("#selAll").checked = n > 0 && n === st.clips.length;
+    $$("#clips .clip").forEach((el) => {
+      const on = st.sel.has(el.dataset.id);
+      el.classList.toggle("sel", on);
+      const box = $(".pick", el); if (box) box.checked = on;
+    });
+  }
+
+  async function load() {
+    try {
+      const data = await api(`/api/projects/${pid}`);
+      st.project = data.project; st.clips = data.clips; st.accounts = data.accounts; st.ytPrivacy = data.youtube_privacy;
+      drawHead(data.project, data.queue_position);
+      drawClips();
+      const busy = ["queued", "running"].includes(data.project.status);
+      const publishing = data.clips.some((c) => (c.publishes || []).some((p) => p.status === "queued" || p.status === "uploading"));
+      clearTimeout(timer);
+      if (busy || publishing) timer = setTimeout(load, busy ? 2500 : 4000);
+    } catch (err) {
+      if (err.status === 404) { $("#title").textContent = "Project not found"; $("#src").textContent = "It may have been deleted."; return; }
+      toast(err.message, true);
+      clearTimeout(timer); timer = setTimeout(load, 5000);
+    }
+  }
+
+  // ---------- interactions ----------
+  $("#clips").addEventListener("change", (e) => {
+    if (!e.target.classList.contains("pick")) return;
+    const id = e.target.closest(".clip").dataset.id;
+    e.target.checked ? st.sel.add(id) : st.sel.delete(id);
+    drawSel();
+  });
+  $("#selAll").onchange = (e) => { st.sel = new Set(e.target.checked ? st.clips.map((c) => c.id) : []); drawSel(); };
+  $("#clearSel").onclick = () => { st.sel.clear(); drawSel(); };
+  $("#sortSel").onchange = (e) => { st.sort = e.target.value; st.sig = ""; drawClips(); };
+
+  $("#clips").addEventListener("click", async (e) => {
+    const btn = e.target.closest("[data-act]");
+    if (!btn) return;
+    const id = btn.closest(".clip").dataset.id;
+    if (btn.dataset.act === "copy") {
+      try { await navigator.clipboard.writeText(btn.dataset.caption); toast("Caption copied"); } catch { toast("Couldn't copy. Select the text instead.", true); }
+    }
+    if (btn.dataset.act === "publish") openPublish([id]);
+  });
+  $("#clips").addEventListener("keydown", (e) => {
+    if (e.target.dataset.edit === "title" && e.key === "Enter") { e.preventDefault(); e.target.blur(); }
+  });
+  $("#clips").addEventListener("focusout", async (e) => {
+    const el = e.target;
+    if (el.dataset.edit !== "title") return;
+    const id = el.closest(".clip").dataset.id;
+    const clip = st.clips.find((c) => c.id === id);
+    const title = el.textContent.trim();
+    if (!clip || !title || title === clip.title) { el.textContent = clip ? clip.title : el.textContent; return; }
+    try { const { clip: saved } = await api(`/api/clips/${id}`, { method: "PATCH", body: { title } }); clip.title = saved.title; st.sig = ""; toast("Title saved"); }
+    catch (err) { el.textContent = clip.title; toast(err.message, true); }
+  });
+
+  $("#cancelBtn").onclick = async () => {
+    if (!confirm("Cancel this project? Clips already made will be removed.")) return;
+    try { await api(`/api/projects/${pid}/cancel`, { method: "POST" }); load(); } catch (err) { toast(err.message, true); }
+  };
+  $("#retryBtn").onclick = async () => {
+    try { await api(`/api/projects/${pid}/retry`, { method: "POST" }); st.sig = ""; load(); } catch (err) { toast(err.message, true); }
+  };
+  $("#delBtn").onclick = async () => {
+    if (!confirm("Delete this project and all its clips? This can't be undone.")) return;
+    try { await api(`/api/projects/${pid}`, { method: "DELETE" }); location.href = "/dashboard"; } catch (err) { toast(err.message, true); }
+  };
+
+  // ---------- publish ----------
+  function openPublish(ids) {
+    st.pubTargets = ids;
+    $("#pubSub").textContent = `${ids.length} clip${ids.length === 1 ? "" : "s"} will be sent to the accounts you pick. YouTube Shorts upload as ${st.ytPrivacy}${st.ytPrivacy === "public" ? "" : " until you change them"}. TikTok clips land in your TikTok inbox to post.`;
+    $("#pubList").innerHTML = st.accounts.length
+      ? st.accounts.map((a) => `<label class="acct-opt"><input type="checkbox" value="${esc(a.id)}" checked />
+          <span class="plat ${a.platform}" style="width:32px;height:32px;border-radius:9px">${ICON[a.platform]}</span>
+          <span><b>${esc(a.name)}</b><br><span class="faint" style="font-size:12.5px">${a.platform === "youtube" ? "YouTube Shorts" : "TikTok"}</span></span></label>`).join("")
+      : `<div class="note">No accounts connected yet. <a href="/accounts">Connect YouTube or TikTok</a> first.</div>`;
+    $("#pubGo").disabled = st.accounts.length === 0;
+    $("#pubModal").hidden = false;
+    $("#pubGo").focus();
+  }
+  const closePublish = () => { $("#pubModal").hidden = true; };
+  $("#pubCancel").onclick = closePublish;
+  $("#pubModal").addEventListener("click", (e) => { if (e.target.id === "pubModal") closePublish(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closePublish(); });
+  $("#pubSel").onclick = () => openPublish([...st.sel]);
+  $("#pubGo").onclick = async () => {
+    const account_ids = $$("#pubList input:checked").map((i) => i.value);
+    if (!account_ids.length) { toast("Pick at least one account.", true); return; }
+    $("#pubGo").disabled = true;
+    try {
+      const r = await api("/api/publish", { method: "POST", body: { clip_ids: st.pubTargets, account_ids } });
+      closePublish(); toast(`Publishing ${r.queued} upload${r.queued === 1 ? "" : "s"}…`); st.sig = ""; load();
+    } catch (err) { toast(err.message, true); }
+    finally { $("#pubGo").disabled = false; }
+  };
+
+  load();
+</script>
+</body>
+</html>

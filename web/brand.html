@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Brand kit · Verticlip</title>
+<link rel="icon" href="/assets/verticlip-logo.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Hanken+Grotesk:wght@400;500;600;700&family=Poppins:wght@700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/static/app.css" />
+</head>
+<body data-shell="app" data-page="brand">
+<main>
+  <header class="page-head">
+    <div><h1>Brand kit</h1><p>The look every new project starts with. You can still change captions and layout per video.</p></div>
+    <button class="btn" id="saveBtn">Save brand kit</button>
+  </header>
+
+  <div class="two">
+    <div class="stack">
+      <section class="card pad">
+        <span class="label" id="capLabel">Caption style</span>
+        <div class="style-cards" role="group" aria-labelledby="capLabel" id="capCards">
+          <button class="style-card" data-v="karaoke"><div class="demo"><span class="cap-karaoke">THIS IS <em>HOW</em> IT</span></div><div class="nm">Highlight word</div></button>
+          <button class="style-card" data-v="bold"><div class="demo"><span class="cap-bold">THIS IS HOW</span></div><div class="nm">Bold box</div></button>
+          <button class="style-card" data-v="clean"><div class="demo"><span class="cap-clean">THIS IS HOW IT WORKS</span></div><div class="nm">Clean</div></button>
+          <button class="style-card" data-v="none"><div class="demo"><span class="faint" style="font-family:var(--body);font-weight:600">No captions</span></div><div class="nm">Off</div></button>
+        </div>
+      </section>
+
+      <section class="card pad">
+        <div class="field">
+          <label for="hlColor">Highlight colour</label>
+          <div style="display:flex;gap:10px;align-items:center">
+            <input type="color" id="hlColor" value="#FFE14D" style="width:54px;height:44px;border:0;background:none;padding:0;cursor:pointer" />
+            <div class="chips" id="swatches"></div>
+          </div>
+        </div>
+        <div class="field">
+          <span class="label" id="layLabel">Layout</span>
+          <div class="chips" role="group" aria-labelledby="layLabel" id="layChips">
+            <button class="chip" data-v="fill">Fill: crop to 9:16</button>
+            <button class="chip" data-v="fit">Fit: whole frame on a blurred background</button>
+          </div>
+        </div>
+        <div class="field" style="display:flex;align-items:center;gap:12px">
+          <span class="switch"><input type="checkbox" id="hookToggle" /><span></span></span>
+          <label for="hookToggle" style="margin:0">Show an AI hook title for the first few seconds</label>
+        </div>
+      </section>
+
+      <section class="card pad">
+        <span class="label">Logo</span>
+        <div class="logo-row">
+          <div class="logo-box" id="logoBox"><span class="faint" style="font-size:12px">None</span></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <label class="btn ghost sm" for="logoFile" style="margin:0;color:var(--text)">Upload logo</label>
+            <input type="file" id="logoFile" accept="image/png,image/jpeg,image/webp" class="sr" />
+            <button class="btn quiet sm" id="logoDel" hidden>Remove</button>
+          </div>
+        </div>
+        <p class="muted" style="font-size:13px;margin-top:10px">PNG with a transparent background works best. Placed in the top-right corner of every clip.</p>
+        <div class="note" id="logoNote" style="margin-top:14px" hidden>Your logo is saved, but it's added to clips on Pro and Studio. Free clips carry a small "Made with Verticlip" mark instead. <a href="/billing">See plans</a></div>
+      </section>
+    </div>
+
+    <aside>
+      <div class="phone" aria-label="Preview">
+        <div class="speaker"></div>
+        <img class="logo" id="pvLogo" alt="" hidden />
+        <div class="hook" id="pvHook">The one habit nobody talks about</div>
+        <div class="cap" id="pvCap"></div>
+        <div class="wm" id="pvWm" hidden>Made with Verticlip</div>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<script src="/static/app.js"></script>
+<script>
+  const { $, $$, esc, api, toast } = VC;
+  const SWATCHES = ["#FFE14D", "#D4FF3A", "#5EE6A8", "#4FD1FF", "#8B7CFF", "#FF5C8A", "#FF8A3D"];
+  const b = { caption_style: "karaoke", layout: "fill", hook_title: true, highlight: "#FFE14D", logo: null };
+  let usage = null;
+
+  function draw() {
+    $$("#capCards .style-card").forEach((c) => c.setAttribute("aria-pressed", String(c.dataset.v === b.caption_style)));
+    $$("#layChips .chip").forEach((c) => c.setAttribute("aria-pressed", String(c.dataset.v === b.layout)));
+    $("#hookToggle").checked = b.hook_title;
+    $("#hlColor").value = b.highlight;
+    document.documentElement.style.setProperty("--hl", b.highlight);
+    $("#swatches").innerHTML = SWATCHES.map((s) => `<button class="chip" data-c="${s}" aria-label="${s}" aria-pressed="${s === b.highlight}" style="width:34px;padding:0;background:${s};border-color:${s === b.highlight ? "#fff" : "transparent"}"></button>`).join("");
+    const cap = $("#pvCap");
+    cap.className = "cap";
+    cap.innerHTML = b.caption_style === "none" ? "" : b.caption_style === "karaoke" ? `<span class="cap-karaoke">MOST PEOPLE <em>NEVER</em></span>`
+      : b.caption_style === "bold" ? `<span class="cap-bold">MOST PEOPLE NEVER</span>` : `<span class="cap-clean">MOST PEOPLE NEVER TRY THIS</span>`;
+    $("#pvHook").hidden = !b.hook_title;
+    const paid = usage && usage.brand_logo;
+    $("#pvWm").hidden = !(usage && usage.watermark);
+    const logoUrl = b.logo ? `/brand/logo?v=${encodeURIComponent(b.logo)}` : null;
+    $("#logoBox").innerHTML = logoUrl ? `<img src="${logoUrl}" alt="Your logo" />` : `<span class="faint" style="font-size:12px">None</span>`;
+    $("#pvLogo").hidden = !(logoUrl && paid); if (logoUrl) $("#pvLogo").src = logoUrl;
+    $("#logoDel").hidden = !b.logo;
+    $("#logoNote").hidden = !(b.logo && usage && !paid);
+  }
+
+  $("#capCards").onclick = (e) => { const c = e.target.closest(".style-card"); if (c) { b.caption_style = c.dataset.v; draw(); } };
+  $("#layChips").onclick = (e) => { const c = e.target.closest(".chip"); if (c) { b.layout = c.dataset.v; draw(); } };
+  $("#swatches").onclick = (e) => { const c = e.target.closest("[data-c]"); if (c) { b.highlight = c.dataset.c; draw(); } };
+  $("#hlColor").oninput = (e) => { b.highlight = e.target.value.toUpperCase(); draw(); };
+  $("#hookToggle").onchange = (e) => { b.hook_title = e.target.checked; draw(); };
+
+  $("#saveBtn").onclick = async () => {
+    try {
+      await api("/api/brand", { method: "PUT", body: { caption_style: b.caption_style, layout: b.layout, hook_title: b.hook_title, highlight: b.highlight } });
+      try { localStorage.removeItem("verticlip.opts"); } catch { }
+      toast("Brand kit saved. New projects will use it.");
+    } catch (err) { toast(err.message, true); }
+  };
+  $("#logoFile").onchange = async (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    const fd = new FormData(); fd.append("file", f);
+    try { const r = await api("/api/brand/logo", { method: "POST", form: fd }); b.logo = r.brand.logo; draw(); toast("Logo uploaded"); }
+    catch (err) { toast(err.message, true); }
+    e.target.value = "";
+  };
+  $("#logoDel").onclick = async () => {
+    try { await api("/api/brand/logo", { method: "DELETE" }); b.logo = null; draw(); } catch (err) { toast(err.message, true); }
+  };
+
+  api("/api/brand").then((r) => { Object.assign(b, r.brand); usage = r.usage; draw(); }).catch((err) => toast(err.message, true));
+  draw();
+</script>
+</body>
+</html>

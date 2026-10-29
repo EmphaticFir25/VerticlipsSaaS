@@ -1,0 +1,13 @@
+services:
+  verticlip-saas:
+    container_name: verticlip-saas
+    build: .
+    image: verticlip-saas:latest
+    restart: unless-stopped
+    ports:
+      - "33215:33214"
+    env_file:
+      - path: .env
+        required: true
+    volumes:
+      - ./data:/app/data

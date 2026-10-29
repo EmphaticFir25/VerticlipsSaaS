@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Verticlip · Long videos in, viral shorts out</title>
+<meta name="description" content="Paste a long video. Verticlip finds the best moments, scores them for virality, adds animated captions and publishes to YouTube Shorts and TikTok." />
+<link rel="icon" href="/assets/verticlip-logo.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Hanken+Grotesk:wght@400;500;600;700&family=Poppins:wght@700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/static/app.css" />
+<style>
+  body { overflow-x: hidden; }
+  .wrap { width: min(1180px, 100% - 40px); margin: 0 auto; }
+  .hero > div { min-width: 0; }
+  .top { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; }
+  .top nav { display: flex; gap: 6px; align-items: center; }
+  .top nav a.link { padding: 8px 12px; color: var(--muted); font-weight: 600; font-size: 14.5px; border-radius: 10px; }
+  .top nav a.link:hover { color: var(--text); }
+  .hero { position: relative; display: grid; grid-template-columns: 1.1fr .9fr; gap: 40px; align-items: center; padding: 60px 0 90px; }
+  .hero::before { content: ""; position: absolute; inset: -120px -30vw auto; height: 720px; z-index: -1;
+    background: radial-gradient(50% 60% at 25% 30%, rgba(139, 124, 255, .25), transparent 70%), radial-gradient(40% 50% at 85% 40%, rgba(212, 255, 58, .14), transparent 70%); }
+  .eyebrow { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line-2); color: var(--muted); font-size: 13px; font-weight: 600; }
+  .eyebrow b { color: var(--volt); }
+  .hero h1 { font-size: clamp(42px, 6.4vw, 80px); line-height: .98; letter-spacing: -.045em; margin: 22px 0 20px; font-weight: 800; }
+  .hero h1 span { background: linear-gradient(95deg, var(--volt), #9fffc9 45%, var(--violet)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .hero .lede { font-size: 19px; color: var(--muted); max-width: 34em; }
+  .hero form { margin-top: 32px; max-width: 600px; }
+  .hero .fine { margin-top: 12px; color: var(--faint); font-size: 13.5px; }
+  .art-col { display: grid; place-items: center; }
+  section.band { padding: 90px 0; border-top: 1px solid var(--line); }
+  .band h2 { font-size: clamp(30px, 4vw, 46px); letter-spacing: -.035em; max-width: 18ch; }
+  .band .intro { color: var(--muted); font-size: 17px; margin-top: 12px; max-width: 38em; }
+  .steps3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 40px; counter-reset: s; }
+  .steps3 .card { padding: 26px; }
+  .steps3 .card::before { counter-increment: s; content: "0" counter(s); display: block; font-family: var(--display); font-weight: 800; font-size: 15px; color: var(--volt); margin-bottom: 18px; }
+  .steps3 h3 { font-size: 21px; margin-bottom: 8px; }
+  .feats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 18px; margin-top: 40px; }
+  .feat { padding: 26px; display: flex; flex-direction: column; gap: 10px; }
+  .feat.w3 { min-height: 230px; }
+  .feat.w3 { grid-column: span 3; } .feat.w2 { grid-column: span 2; }
+  .feat h3 { font-size: 21px; }
+  .feat p { color: var(--muted); }
+  .feat .viz { margin-top: auto; }
+  .scorerow { display: flex; gap: 14px; align-items: center; }
+  .capdemo { font: 800 22px/1.2 "Poppins", var(--body); text-align: center; padding: 18px; border-radius: 14px; background: linear-gradient(160deg, #2a2340, #10141a); }
+  .capdemo em { font-style: normal; color: var(--volt); }
+  .logos { display: flex; gap: 10px; }
+  .faq { margin-top: 30px; display: grid; gap: 10px; max-width: 820px; }
+  .faq details { padding: 18px 22px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); }
+  .faq summary { cursor: pointer; font-weight: 700; font-size: 16.5px; list-style: none; display: flex; justify-content: space-between; gap: 12px; }
+  .faq summary::after { content: "+"; color: var(--volt); font-size: 22px; line-height: 1; }
+  .faq details[open] summary::after { content: "–"; }
+  .faq p { color: var(--muted); margin-top: 10px; }
+  .cta { text-align: center; padding: 70px 24px; border-radius: 30px; margin: 0 0 80px;
+    background: radial-gradient(70% 120% at 50% 0%, rgba(212, 255, 58, .16), transparent 70%), var(--surface); border: 1px solid var(--line); }
+  .cta h2 { margin: 0 auto 14px; }
+  footer.site { border-top: 1px solid var(--line); padding: 30px 0 50px; color: var(--faint); font-size: 14px; }
+  footer.site .wrap { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  footer.site a:hover { color: var(--text); }
+  @media (max-width: 960px) {
+    .hero { grid-template-columns: 1fr; padding-top: 30px; }
+    .art-col { display: none; }
+    .steps3 { grid-template-columns: 1fr; }
+    .feats { grid-template-columns: 1fr; } .feat.w3, .feat.w2 { grid-column: auto; }
+    .top nav a.link.hide-sm { display: none; }
+  }
+</style>
+</head>
+<body>
+<header class="wrap top">
+  <a class="brand" href="/" style="padding:0" id="brand"></a>
+  <nav id="topnav">
+    <a class="link hide-sm" href="#how">How it works</a>
+    <a class="link hide-sm" href="#pricing">Pricing</a>
+    <a class="link" href="/login" id="loginLink">Log in</a>
+    <a class="btn sm" href="/signup" id="ctaTop">Start free</a>
+  </nav>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <div>
+      <span class="eyebrow"><b>New</b> Scored by Claude · transcribed by Whisper</span>
+      <h1>One long video.<br><span>A week of shorts.</span></h1>
+      <p class="lede">Paste a podcast, stream or interview. Verticlip finds the moments people will actually watch, scores each one for virality, adds animated captions and gets them onto YouTube Shorts and TikTok.</p>
+      <form class="linkbar" id="heroForm">
+        <svg class="lead" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>
+        <label class="sr" for="heroUrl">Video link</label>
+        <input id="heroUrl" type="url" inputmode="url" placeholder="Paste a video link" />
+        <button class="btn">Get free clips</button>
+      </form>
+      <p class="fine">30 free minutes every month. No card needed.</p>
+    </div>
+    <div class="art-col" aria-hidden="true">
+      <div class="stack-art">
+        <div class="mini"><div class="bg"></div><span class="badge-score mid">▲ 78</span><div class="cap">WAIT FOR <em>IT</em></div></div>
+        <div class="mini"><div class="bg"></div><span class="badge-score hi">▲ 94</span><div class="cap">NOBODY <em>TELLS</em> YOU</div></div>
+        <div class="mini"><div class="bg"></div><span class="badge-score hi">▲ 88</span><div class="cap">THIS <em>CHANGED</em> IT</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" id="how">
+    <h2>From upload to posted in three steps</h2>
+    <p class="intro">No timeline scrubbing. You review a ranked list of finished clips and publish the ones you like.</p>
+    <div class="steps3">
+      <div class="card"><h3>Drop in a video</h3><p class="muted">Paste a YouTube, Twitch, Vimeo or Kick link, or upload a file up to a few hours long.</p></div>
+      <div class="card"><h3>AI finds the moments</h3><p class="muted">Whisper transcribes every word. Claude reads the whole conversation and picks self-contained moments with a strong hook and a payoff.</p></div>
+      <div class="card"><h3>Review and publish</h3><p class="muted">Clips come back ranked by virality score, captioned and cropped to 9:16. Download them or send them to your channels in one click.</p></div>
+    </div>
+  </section>
+
+  <section class="band">
+    <h2>Everything a short needs, done for you</h2>
+    <div class="feats">
+      <div class="card feat w3">
+        <h3>Virality score</h3>
+        <p>Each clip gets a 0–100 score with a breakdown for hook, flow, value and trend, plus a one-line reason. Post the strongest first.</p>
+        <div class="viz scorerow">
+          <div class="score hi" style="--v:94"><b>94</b><small>/100</small></div>
+          <div class="score mid" style="--v:78"><b>78</b><small>/100</small></div>
+          <div class="score" style="--v:61"><b>61</b><small>/100</small></div>
+        </div>
+      </div>
+      <div class="card feat w3">
+        <h3>Animated captions</h3>
+        <p>Word-by-word captions that light up as they're spoken, in your brand colour. Or a bold box, or clean subtitles.</p>
+        <div class="viz capdemo">MOST PEOPLE <em>NEVER</em> TRY</div>
+      </div>
+      <div class="card feat w2"><h3>Hook titles</h3><p>A punchy on-screen title for the first seconds, written from what's said in the clip.</p></div>
+      <div class="card feat w2"><h3>Fill or fit</h3><p>Crop to full-screen 9:16, or keep the whole frame on a blurred background for wide shots and screen shares.</p></div>
+      <div class="card feat w2"><h3>Brand kit</h3><p>Set caption style, colour and logo once. Every new project uses them.</p></div>
+      <div class="card feat w3">
+        <h3>Publish to Shorts and TikTok</h3>
+        <p>Connect as many channels as you run. Pick clips, pick accounts, done. Each clip gets its own title, description and hashtags.</p>
+        <div class="viz logos"><span class="plat youtube" id="ytI"></span><span class="plat tiktok" id="ttI"></span></div>
+      </div>
+      <div class="card feat w3"><h3>Ranked, not raw</h3><p>Clips start and end on full sentences, never mid-word, and never overlap. You get the best moments, not every moment.</p></div>
+    </div>
+  </section>
+
+  <section class="band" id="pricing">
+    <h2>Simple plans, billed by minutes of video</h2>
+    <p class="intro">Upload a 45-minute podcast and you've used 45 minutes. If a video fails, the minutes come back.</p>
+    <div class="plans" id="plans" style="margin-top:40px"></div>
+  </section>
+
+  <section class="band">
+    <h2>Questions</h2>
+    <div class="faq">
+      <details><summary>What videos work best?</summary><p>Anything with people talking: podcasts, interviews, streams, talks, tutorials and vlogs. Verticlip reads what's said, so music-only or silent videos won't produce clips.</p></details>
+      <details><summary>How long can a video be?</summary><p>Up to three hours per video. Longer videos simply use more of your monthly minutes.</p></details>
+      <details><summary>Can I clip someone else's video?</summary><p>Only if you own it or have permission. You're responsible for the rights to everything you clip and post.</p></details>
+      <details><summary>Does it post without asking me?</summary><p>Never. Clips only go to YouTube or TikTok when you press Publish. YouTube uploads start private by default, and TikTok clips land in your inbox for a final check.</p></details>
+      <details><summary>Can I cancel any time?</summary><p>Yes. Manage or cancel your subscription from the billing page. You keep your plan until the end of the period you paid for.</p></details>
+    </div>
+  </section>
+
+  <section class="cta">
+    <h2>Your next clip is already in your last video</h2>
+    <p class="muted" style="margin-bottom:26px">Start with 30 free minutes. It takes about a minute to set up.</p>
+    <a class="btn lg" href="/signup" id="ctaBottom">Start clipping free</a>
+  </section>
+</main>
+
+<footer class="site"><div class="wrap">
+  <span>© 2026 Verticlip. Only clip videos you own or have permission to use.</span>
+  <span style="display:flex;gap:18px"><a href="/terms">Terms</a><a href="/privacy">Privacy</a></span>
+</div></footer>
+
+<script src="/static/app.js"></script>
+<script>
+  const { $, esc, ICON } = VC;
+  $("#brand").innerHTML = `${ICON.logo}<span>Verticlip</span>`;
+  $("#ytI").innerHTML = ICON.youtube; $("#ttI").innerHTML = ICON.tiktok;
+  let loggedIn = false;
+
+  fetch("/api/me", { credentials: "same-origin" }).then((r) => {
+    if (!r.ok) return;
+    loggedIn = true;
+    $("#loginLink").remove();
+    $("#ctaTop").textContent = "Open dashboard"; $("#ctaTop").href = "/dashboard";
+    $("#ctaBottom").textContent = "Go to your projects"; $("#ctaBottom").href = "/dashboard";
+  }).catch(() => { });
+
+  $("#heroForm").onsubmit = (e) => {
+    e.preventDefault();
+    const url = $("#heroUrl").value.trim();
+    const dest = "/dashboard" + (url ? `?url=${encodeURIComponent(url)}` : "");
+    location.href = loggedIn ? dest : `/signup?next=${encodeURIComponent(dest)}`;
+  };
+
+  fetch("/api/plans").then((r) => r.json()).then(({ plans }) => {
+    const rows = (p) => [`${p.minutes.toLocaleString()} minutes of video a month`, `Up to ${p.max_clips} clips per video`,
+      "Virality scores, captions and hook titles", p.watermark ? "Small “Made with Verticlip” mark" : "No watermark",
+      ...(p.brand_logo ? ["Your logo on every clip"] : []), "Publish to YouTube and TikTok"];
+    $("#plans").innerHTML = ["free", "pro", "studio"].map((k) => {
+      const p = plans[k];
+      return `<section class="card plan${k === "pro" ? " featured" : ""}">${k === "pro" ? `<span class="pill run tag">Most popular</span>` : ""}
+        <h3>${esc(p.name)}</h3><div class="price">$${p.price}<small> / month</small></div>
+        <ul>${rows(p).map((r) => `<li>${esc(r)}</li>`).join("")}</ul>
+        <a class="btn${k === "pro" ? "" : " ghost"}" href="/signup${k === "free" ? "" : "?next=" + encodeURIComponent("/billing")}">${k === "free" ? "Start free" : "Choose " + esc(p.name)}</a></section>`;
+    }).join("");
+  }).catch(() => { });
+</script>
+</body>
+</html>

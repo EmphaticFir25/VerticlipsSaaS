@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Projects · Verticlip</title>
+<link rel="icon" href="/assets/verticlip-logo.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Hanken+Grotesk:wght@400;500;600;700&family=Poppins:wght@700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/static/app.css" />
+</head>
+<body data-shell="app" data-page="dashboard">
+<main>
+  <section class="create" id="create" aria-labelledby="createTitle">
+    <h2 id="createTitle">Turn a long video into ready-to-post shorts</h2>
+    <p class="sub">Paste a link or upload a file. We transcribe it, score every moment for virality, and cut the best ones into captioned vertical clips.</p>
+
+    <div class="tabs" role="tablist" aria-label="Source">
+      <button role="tab" aria-selected="true" data-tab="link" id="tabLink">Video link</button>
+      <button role="tab" aria-selected="false" data-tab="upload" id="tabUpload">Upload file</button>
+    </div>
+
+    <form id="linkForm" class="linkbar" autocomplete="off">
+      <svg class="lead" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>
+      <label class="sr" for="urlInput">Video link</label>
+      <input id="urlInput" type="url" inputmode="url" placeholder="Paste a YouTube, Twitch, Vimeo or Kick link" required />
+      <button class="btn" id="goBtn" type="submit">Get clips</button>
+    </form>
+
+    <div id="uploadPane" hidden>
+      <label class="drop" id="drop" for="fileInput">
+        <span class="faint" id="dropIcon"></span>
+        <b id="dropText">Drop a video here, or click to choose</b>
+        <span class="muted" style="font-size:13px">MP4, MOV, MKV or WebM</span>
+      </label>
+      <input type="file" id="fileInput" accept="video/*" class="sr" />
+      <div class="upbar" id="upbar" hidden><div class="meter"><div id="upMeter" style="width:0"></div></div><p class="muted" id="upText" style="margin-top:8px;font-size:13px"></p></div>
+    </div>
+
+    <div class="opts">
+      <div>
+        <span class="label" id="lenLabel">Clip length</span>
+        <div class="chips" role="group" aria-labelledby="lenLabel" id="lenChips">
+          <button type="button" class="chip" data-v="auto">Auto</button>
+          <button type="button" class="chip" data-v="short">&lt; 30s</button>
+          <button type="button" class="chip" data-v="medium">30–60s</button>
+          <button type="button" class="chip" data-v="long">60–90s</button>
+        </div>
+      </div>
+      <div>
+        <label for="capSel">Captions</label>
+        <select class="select-sm" id="capSel">
+          <option value="karaoke">Highlight word</option>
+          <option value="bold">Bold box</option>
+          <option value="clean">Clean</option>
+          <option value="none">No captions</option>
+        </select>
+      </div>
+      <div>
+        <label for="layoutSel">Layout</label>
+        <select class="select-sm" id="layoutSel">
+          <option value="fill">Fill (crop to 9:16)</option>
+          <option value="fit">Fit (blurred background)</option>
+        </select>
+      </div>
+      <div>
+        <label for="countSel">Clips</label>
+        <select class="select-sm" id="countSel"></select>
+      </div>
+      <div class="opt-inline">
+        <span class="switch"><input type="checkbox" id="hookToggle" checked /><span></span></span>
+        <label for="hookToggle" style="margin:0">Hook title</label>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-head">
+    <h2>Your projects</h2>
+    <span class="muted" id="projCount"></span>
+  </div>
+  <div class="grid" id="grid"></div>
+</main>
+
+<script src="/static/app.js"></script>
+<script>
+  const { $, $$, esc, api, toast, fmtDur, timeAgo, tier, ICON } = VC;
+  const LS = "verticlip.opts";
+  const opts = (() => { try { return JSON.parse(localStorage.getItem(LS)) || {}; } catch { return {}; } })();
+  const saveOpts = () => { try { localStorage.setItem(LS, JSON.stringify(opts)); } catch { } };
+  let maxClips = 6;
+
+  // ---------- options ----------
+  function drawOpts() {
+    const len = opts.length || "auto";
+    $$("#lenChips .chip").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === len)));
+    if (opts.caption_style) $("#capSel").value = opts.caption_style;
+    if (opts.layout) $("#layoutSel").value = opts.layout;
+    if (typeof opts.hook_title === "boolean") $("#hookToggle").checked = opts.hook_title;
+    const count = Math.min(opts.max_clips || Math.min(8, maxClips), maxClips);
+    $("#countSel").innerHTML = Array.from({ length: maxClips }, (_, i) => i + 1)
+      .map((n) => `<option value="${n}"${n === count ? " selected" : ""}>Up to ${n}</option>`).join("");
+  }
+  $("#lenChips").onclick = (e) => { const b = e.target.closest(".chip"); if (!b) return; opts.length = b.dataset.v; saveOpts(); drawOpts(); };
+  $("#capSel").onchange = (e) => { opts.caption_style = e.target.value; saveOpts(); };
+  $("#layoutSel").onchange = (e) => { opts.layout = e.target.value; saveOpts(); };
+  $("#countSel").onchange = (e) => { opts.max_clips = Number(e.target.value); saveOpts(); };
+  $("#hookToggle").onchange = (e) => { opts.hook_title = e.target.checked; saveOpts(); };
+  const settings = () => ({
+    length: opts.length || "auto", caption_style: $("#capSel").value, layout: $("#layoutSel").value,
+    max_clips: Number($("#countSel").value), hook_title: $("#hookToggle").checked,
+  });
+
+  // ---------- tabs ----------
+  $$(".tabs button").forEach((b) => b.onclick = () => {
+    $$(".tabs button").forEach((x) => x.setAttribute("aria-selected", String(x === b)));
+    const up = b.dataset.tab === "upload";
+    $("#linkForm").hidden = up; $("#uploadPane").hidden = !up;
+  });
+  $("#dropIcon").innerHTML = ICON.upload;
+
+  // ---------- start from a link ----------
+  $("#linkForm").onsubmit = async (e) => {
+    e.preventDefault();
+    const url = $("#urlInput").value.trim();
+    if (!url) return;
+    const btn = $("#goBtn");
+    btn.disabled = true; btn.textContent = "Checking link…";
+    try {
+      const { project } = await api("/api/projects", { method: "POST", body: { url, settings: settings() } });
+      location.href = `/project/${project.id}`;
+    } catch (err) {
+      toast(err.message, true);
+      btn.disabled = false; btn.textContent = "Get clips";
+    }
+  };
+
+  // ---------- start from an upload ----------
+  function uploadFile(file) {
+    if (!file) return;
+    if (!file.type.startsWith("video/") && !/\.(mp4|mov|mkv|webm|m4v|avi)$/i.test(file.name)) { toast("Choose a video file.", true); return; }
+    const fd = new FormData();
+    fd.append("settings", JSON.stringify(settings()));
+    fd.append("file", file);
+    const xhr = new XMLHttpRequest();
+    $("#upbar").hidden = false; $("#dropText").textContent = file.name;
+    xhr.upload.onprogress = (ev) => {
+      if (!ev.lengthComputable) return;
+      const pct = Math.round((ev.loaded / ev.total) * 100);
+      $("#upMeter").style.width = pct + "%";
+      $("#upText").textContent = pct < 100 ? `Uploading… ${pct}%` : "Checking the video…";
+    };
+    xhr.onload = () => {
+      let data = {};
+      try { data = JSON.parse(xhr.responseText); } catch { }
+      if (xhr.status === 201) { location.href = `/project/${data.project.id}`; return; }
+      if (xhr.status === 401) { location.href = "/login?next=/dashboard"; return; }
+      toast(data.detail || (xhr.status === 413 ? "That file is too large." : "Upload failed."), true);
+      $("#upbar").hidden = true; $("#dropText").textContent = "Drop a video here, or click to choose";
+    };
+    xhr.onerror = () => { toast("Upload failed. Check your connection.", true); $("#upbar").hidden = true; };
+    xhr.open("POST", "/api/projects/upload");
+    xhr.setRequestHeader("X-Verticlip", "1");
+    xhr.send(fd);
+  }
+  $("#fileInput").onchange = (e) => uploadFile(e.target.files[0]);
+  const drop = $("#drop");
+  ["dragenter", "dragover"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add("over"); }));
+  ["dragleave", "drop"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
+  drop.addEventListener("drop", (e) => uploadFile(e.dataTransfer.files[0]));
+
+  // ---------- projects ----------
+  const STATE = { queued: "Waiting to start", running: "Working", done: "Ready", error: "Failed", cancelled: "Cancelled" };
+  function card(p) {
+    const busy = p.status === "queued" || p.status === "running";
+    const img = p.thumb ? `<img src="${esc(p.thumb)}" alt="" loading="lazy" />` : "";
+    let overlay = "";
+    if (busy) overlay = `<div class="state"><span>${esc(p.message || STATE[p.status])}</span><div class="meter"><div style="width:${Number(p.progress) || 2}%"></div></div></div>`;
+    else if (p.status === "error" || p.status === "cancelled") overlay = `<div class="state"><span class="pill bad">${STATE[p.status]}</span></div>`;
+    const top = p.top_score ? `<span class="badge-score top ${tier(p.top_score)}">▲ ${Math.round(p.top_score)}</span>` : "";
+    const sub = p.status === "done" ? `${p.clip_count} clip${p.clip_count === 1 ? "" : "s"}` : STATE[p.status];
+    return `<a class="proj" href="/project/${esc(p.id)}">
+      <div class="thumb">${img}${top}${p.duration ? `<span class="dur">${fmtDur(p.duration)}</span>` : ""}${overlay}</div>
+      <div class="meta"><h3>${esc(p.title || "Untitled video")}</h3><div class="sub"><span>${sub}</span><span>·</span><span>${timeAgo(p.created)}</span></div></div>
+    </a>`;
+  }
+  let timer = null;
+  async function loadProjects() {
+    try {
+      const { projects } = await api("/api/projects");
+      $("#projCount").textContent = projects.length ? `${projects.length} total` : "";
+      $("#grid").innerHTML = projects.length ? projects.map(card).join("")
+        : `<div class="empty" style="grid-column:1/-1"><h3>No projects yet</h3><p>Paste a video link above to make your first clips.</p></div>`;
+      clearTimeout(timer);
+      if (projects.some((p) => p.status === "queued" || p.status === "running")) timer = setTimeout(loadProjects, 3000);
+    } catch (err) { toast(err.message, true); }
+  }
+
+  VC.loadMe().then((me) => {
+    maxClips = me.usage.max_clips;
+    for (const k of ["caption_style", "layout", "hook_title"]) if (opts[k] === undefined && me.brand[k] !== undefined) opts[k] = me.brand[k];
+    drawOpts();
+    if (!me.ai.scoring || !me.ai.transcription) toast("The server's AI keys aren't set up yet, so new projects can't start.", true);
+  }).catch(() => drawOpts());
+  drawOpts();
+  loadProjects();
+  const pre = new URLSearchParams(location.search).get("url");
+  if (pre) { $("#urlInput").value = pre; history.replaceState(null, "", "/dashboard"); }
+  if (location.hash === "#create") $("#urlInput").focus();
+</script>
+</body>
+</html>

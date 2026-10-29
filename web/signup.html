@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Create your account · Verticlip</title>
+<link rel="icon" href="/assets/verticlip-logo.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Hanken+Grotesk:wght@400;500;600;700&family=Poppins:wght@700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/static/app.css" />
+</head>
+<body>
+<div class="auth">
+  <div class="form-side">
+    <form id="form" novalidate>
+      <a class="brand" href="/" style="padding:0" id="brandLink"></a>
+      <h1>Start clipping free</h1>
+      <p class="muted" style="margin-bottom:24px">30 free minutes every month. No card needed.</p>
+      <div class="field"><label for="name">Name</label><input class="input" id="name" autocomplete="name" maxlength="80" /></div>
+      <div class="field"><label for="email">Email</label><input class="input" id="email" type="email" autocomplete="email" required /></div>
+      <div class="field"><label for="password">Password</label><input class="input" id="password" type="password" autocomplete="new-password" minlength="8" required /></div>
+      <button class="btn lg" id="submit">Create account</button>
+      <p class="form-err" id="err" role="alert"></p>
+      <p class="faint" style="font-size:12.5px;margin-top:14px;text-align:center">By signing up you agree to the <a href="/terms" style="text-decoration:underline">Terms</a> and <a href="/privacy" style="text-decoration:underline">Privacy Policy</a>.</p>
+      <p class="alt">Already have an account? <a href="/login" id="altLink">Log in</a></p>
+    </form>
+  </div>
+  <div class="art" aria-hidden="true">
+    <div class="stack-art">
+      <div class="mini"><div class="bg"></div><span class="badge-score mid">▲ 78</span><div class="cap">WAIT FOR <em>IT</em></div></div>
+      <div class="mini"><div class="bg"></div><span class="badge-score hi">▲ 94</span><div class="cap">NOBODY <em>TELLS</em> YOU</div></div>
+      <div class="mini"><div class="bg"></div><span class="badge-score hi">▲ 88</span><div class="cap">THIS <em>CHANGED</em> IT</div></div>
+    </div>
+  </div>
+</div>
+<script src="/static/app.js"></script>
+<script>
+  const { $, api, safeNext, ICON } = VC;
+  $("#brandLink").innerHTML = `${ICON.logo}<span>Verticlip</span>`;
+  const next = safeNext(new URLSearchParams(location.search).get("next"));
+  if (next !== "/dashboard") $("#altLink").href += "?next=" + encodeURIComponent(next);
+  $("#form").onsubmit = async (e) => {
+    e.preventDefault();
+    $("#err").textContent = "";
+    const btn = $("#submit"); btn.disabled = true;
+    try {
+      await api("/api/auth/signup", { method: "POST", body: { name: $("#name").value, email: $("#email").value, password: $("#password").value } });
+      location.href = next;
+    } catch (err) { $("#err").textContent = err.message; btn.disabled = false; }
+  };
+</script>
+</body>
+</html>

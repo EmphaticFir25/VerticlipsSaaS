@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Plan & billing · Verticlip</title>
+<link rel="icon" href="/assets/verticlip-logo.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/static/app.css" />
+</head>
+<body data-shell="app" data-page="billing">
+<main>
+  <header class="page-head">
+    <div><h1>Plan & billing</h1><p>Minutes are minutes of source video. A 40-minute podcast uses 40.</p></div>
+    <button class="btn ghost" id="portalBtn" hidden>Manage subscription</button>
+  </header>
+
+  <section class="card pad" style="margin-bottom:26px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
+      <h2 style="font-size:20px" id="curPlan">Your plan</h2>
+      <span class="muted" id="resets"></span>
+    </div>
+    <div class="meter" style="height:10px;margin:16px 0 10px"><div id="useBar" style="width:0"></div></div>
+    <p id="useText" class="muted"></p>
+  </section>
+
+  <div class="plans" id="plans"></div>
+  <p class="muted" id="billNote" style="margin-top:18px;font-size:13.5px"></p>
+</main>
+
+<script src="/static/app.js"></script>
+<script>
+  const { $, esc, api, toast } = VC;
+  const FEATURES = (p) => [
+    `${p.minutes.toLocaleString()} minutes of video a month`,
+    `Up to ${p.max_clips} clips per video`,
+    "AI virality scores and hook titles",
+    "Animated captions, fill and fit layouts",
+    p.watermark ? "Small “Made with Verticlip” mark" : "No watermark",
+    ...(p.brand_logo ? ["Your logo on every clip"] : []),
+    "Publish to YouTube and TikTok",
+  ];
+
+  async function load() {
+    try {
+      const me = await VC.loadMe(true);
+      const u = me.usage;
+      VC.drawUsage(me);
+      $("#curPlan").textContent = `${u.plan_name} plan`;
+      $("#useBar").style.width = Math.min(100, (u.minutes_used / Math.max(1, u.minutes_included)) * 100) + "%";
+      $("#useText").textContent = `${u.minutes_used.toLocaleString()} of ${u.minutes_included.toLocaleString()} minutes used · ${u.minutes_left.toLocaleString()} left`;
+      $("#resets").textContent = `Resets ${new Date(u.resets_at * 1000).toLocaleDateString(undefined, { month: "long", day: "numeric" })}`;
+      $("#portalBtn").hidden = !me.user.has_subscription;
+      const order = ["free", "pro", "studio"];
+      $("#plans").innerHTML = order.map((key) => {
+        const p = me.plans[key], current = key === u.plan;
+        let action;
+        if (current) action = `<button class="btn ghost" disabled>Current plan</button>`;
+        else if (key === "free") action = me.user.has_subscription ? `<button class="btn ghost" data-portal>Downgrade</button>` : "";
+        else if (!me.billing) action = `<button class="btn" disabled>Coming soon</button>`;
+        else if (me.user.has_subscription) action = `<button class="btn" data-portal>Switch to ${esc(p.name)}</button>`;
+        else action = `<button class="btn" data-plan="${key}">Upgrade to ${esc(p.name)}</button>`;
+        return `<section class="card plan${key === "pro" ? " featured" : ""}">
+          ${key === "pro" ? `<span class="pill run tag">Most popular</span>` : ""}
+          <h3>${esc(p.name)}</h3>
+          <div class="price">$${p.price}<small> / month</small></div>
+          <ul>${FEATURES(p).map((f) => `<li>${esc(f)}</li>`).join("")}</ul>
+          ${action}
+        </section>`;
+      }).join("");
+      $("#billNote").textContent = me.billing ? "Payments are handled by Stripe. Cancel any time from Manage subscription." : "Paid plans open soon.";
+    } catch (err) { toast(err.message, true); }
+  }
+
+  document.addEventListener("click", async (e) => {
+    const up = e.target.closest("[data-plan]"), portal = e.target.closest("[data-portal], #portalBtn");
+    if (!up && !portal) return;
+    const btn = up || portal;
+    btn.disabled = true;
+    try {
+      const r = up ? await api("/api/billing/checkout", { method: "POST", body: { plan: up.dataset.plan } })
+                   : await api("/api/billing/portal", { method: "POST" });
+      location.href = r.url;
+    } catch (err) { toast(err.message, true); btn.disabled = false; }
+  });
+
+  const q = new URLSearchParams(location.search).get("checkout");
+  if (q === "success") toast("Thanks! Your plan is being upgraded. It can take a few seconds to show.");
+  if (q === "cancelled") toast("Checkout cancelled. You weren't charged.");
+  if (q) { history.replaceState(null, "", "/billing"); if (q === "success") setTimeout(load, 4000); }
+  load();
+</script>
+</body>
+</html>

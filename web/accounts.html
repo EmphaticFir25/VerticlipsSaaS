@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Social accounts · Verticlip</title>
+<link rel="icon" href="/assets/verticlip-logo.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/static/app.css" />
+</head>
+<body data-shell="app" data-page="accounts">
+<main>
+  <header class="page-head">
+    <div><h1>Social accounts</h1><p>Connect as many channels as you like. Clips are only uploaded when you press Publish.</p></div>
+  </header>
+  <div class="acct-grid" id="cards"></div>
+</main>
+
+<script src="/static/app.js"></script>
+<script>
+  const { $, esc, api, toast, ICON, timeAgo } = VC;
+  const PLAT = {
+    youtube: { name: "YouTube Shorts", blurb: "Uploads straight to your channel. Videos start private so you can check them first." },
+    tiktok: { name: "TikTok", blurb: "Sends clips to your TikTok inbox, where you add the caption and post." },
+  };
+
+  async function load() {
+    try {
+      const { accounts, available } = await api("/api/accounts");
+      $("#cards").innerHTML = Object.entries(PLAT).map(([key, p]) => {
+        const mine = accounts.filter((a) => a.platform === key);
+        const on = available[key];
+        return `<section class="card acct-card">
+          <header><span class="plat ${key}">${ICON[key]}</span><div><h3>${p.name}</h3><p class="muted" style="font-size:13.5px">${p.blurb}</p></div></header>
+          ${mine.map((a) => `<div class="acct-row"><span>${esc(a.name)}</span><span class="faint" style="font-weight:500;font-size:12.5px">connected ${timeAgo(a.created)}</span>
+            <button class="btn quiet sm" data-rm="${esc(a.id)}" data-name="${esc(a.name)}">Remove</button></div>`).join("")}
+          ${on ? `<a class="btn ${mine.length ? "ghost" : ""}" href="/auth/${key}/start">${mine.length ? "Connect another" : "Connect " + p.name.split(" ")[0]}</a>`
+               : `<div class="note">${p.name.split(" ")[0]} connections aren't switched on for this workspace yet.</div>`}
+        </section>`;
+      }).join("");
+    } catch (err) { toast(err.message, true); }
+  }
+
+  $("#cards").addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-rm]");
+    if (!b || !confirm(`Disconnect ${b.dataset.name}? You can connect it again any time.`)) return;
+    try { await api(`/api/accounts/${b.dataset.rm}`, { method: "DELETE" }); toast("Disconnected"); load(); }
+    catch (err) { toast(err.message, true); }
+  });
+
+  const q = new URLSearchParams(location.search);
+  if (q.get("connected")) toast(`${q.get("connected") === "youtube" ? "YouTube" : "TikTok"} connected`);
+  if (q.get("error")) toast(q.get("error"), true);
+  if (q.toString()) history.replaceState(null, "", "/accounts");
+  load();
+</script>
+</body>
+</html>
