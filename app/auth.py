@@ -76,6 +76,19 @@ def token_hash(token: str) -> str:
     return _token_hash(token)
 
 
+EMAIL_TOKEN_TTL = {"verify": 3 * 86400, "reset": 3600}
+
+
+def new_email_token(user_id: str, kind: str) -> str:
+    token = secrets.token_urlsafe(32)
+    db.create_email_token(_token_hash(token), user_id, kind, EMAIL_TOKEN_TTL[kind])
+    return token
+
+
+def consume_email_token(token: str, kind: str) -> Optional[str]:
+    return db.consume_email_token(_token_hash(str(token or "")), kind)
+
+
 # ---------- login throttling ----------
 
 class Throttle:
@@ -104,6 +117,7 @@ class Throttle:
 
 login_throttle = Throttle()
 signup_throttle = Throttle(limit=10, window=3600)
+mail_throttle = Throttle(limit=5, window=3600)   # reset and verification emails, per address and per network
 
 
 # ---------- token encryption ----------

@@ -4,10 +4,31 @@ services:
     build: .
     image: verticlip-saas:latest
     restart: unless-stopped
-    ports:
-      - "127.0.0.1:33215:33214"  # reachable only by the reverse proxy on this machine
     env_file:
       - path: .env
         required: true
     volumes:
       - ./data:/app/data
+    # No published ports: only Caddy (below) can reach the app, over the private compose network.
+    expose:
+      - "33214"
+
+  caddy:
+    image: caddy:2
+    container_name: verticlip-caddy
+    restart: unless-stopped
+    depends_on:
+      - verticlip-saas
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN in .env, for example clips.example.com}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

@@ -52,8 +52,10 @@ cp .env.example .env      # fill in PUBLIC_BASE, SECRET_KEY, ANTHROPIC_API_KEY, 
 docker compose up -d --build
 ```
 
-It listens on port **33215** on the host (container port 33214), so it can sit next to the local Verticlip on the same machine.
-Put it behind HTTPS (Cloudflare Tunnel, Caddy, etc.) and set `PUBLIC_BASE` to that address. Google and TikTok only accept HTTPS redirect URIs.
+Set `DOMAIN` (for example `clips.example.com`) and `PUBLIC_BASE=https://clips.example.com` in `.env`, point the domain's DNS
+at the server, and open ports 80 and 443. The bundled Caddy container gets and renews the HTTPS certificate on its own, and the
+app itself is not published to the internet. Google and TikTok only accept HTTPS redirect URIs.
+On an `https://` `PUBLIC_BASE` the app refuses to start without `SECRET_KEY` and the `SMTP_*` email settings.
 
 Everything (database, uploads, clips) lives in `./data`. Back that folder up.
 
@@ -94,8 +96,8 @@ login, plan limits, per-customer isolation, Stripe signatures and the brand kit.
   `.env` on your server. Customers never enter or see them, and no API route returns them.
 - **Never commit `.env`** (it is git-ignored and excluded from the Docker image). Rotate any key that was ever pasted in chat,
   an issue or a commit. Set `SECRET_KEY` before going live; the app refuses to start on an https `PUBLIC_BASE` without it.
-- **Network:** the container port is bound to `127.0.0.1`, so only your reverse proxy (Caddy, Cloudflare Tunnel) can reach it.
-  This matters because the login and sign-up throttles trust the forwarded client address.
+- **Network:** the app has no published port. Only the Caddy container can reach it, which matters because the login and
+  sign-up throttles trust the forwarded client address.
 - **Data:** `./data` holds password hashes, uploads, and encrypted social tokens. Keep it off public storage and back it up.
 - **Billing:** set a monthly spend limit on your Anthropic and OpenAI accounts so a bug or abuse can't run up a bill.
 
@@ -103,5 +105,4 @@ login, plan limits, per-customer isolation, Stripe signatures and the brand kit.
 
 This is built to run as **one container** with SQLite and local disk, which is fine for a launch. When you outgrow it:
 move clips to S3/R2 with signed URLs, swap SQLite for Postgres, and run the worker as its own process. The job
-code in `pipeline.py` doesn't depend on the web layer, so it moves over unchanged. Password reset by email and admin
-tooling are not built yet.
+code in `pipeline.py` doesn't depend on the web layer, so it moves over unchanged. Admin tooling is not built yet.

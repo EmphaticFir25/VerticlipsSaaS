@@ -1,0 +1,10 @@
+# Caddy gets and renews the HTTPS certificate for DOMAIN by itself.
+# Point DOMAIN's DNS at this server and open ports 80 and 443.
+{$DOMAIN} {
+	encode zstd gzip
+	# Big enough for MAX_UPLOAD_MB uploads.
+	request_body {
+		max_size 2GB
+	}
+	reverse_proxy verticlip-saas:33214
+}

@@ -28,6 +28,17 @@ def _int(name: str, default: int) -> int:
 # ---------- deployment ----------
 PUBLIC_BASE = _env("PUBLIC_BASE", "http://localhost:33214").rstrip("/")
 SECURE_COOKIES = PUBLIC_BASE.startswith("https://")
+# Only honour CF-Connecting-IP when the app really sits behind Cloudflare; otherwise anyone can forge it.
+TRUST_CLOUDFLARE = _env("TRUST_CLOUDFLARE", "false").lower() == "true"
+
+# ---------- email (verification and password reset) ----------
+SMTP_HOST = _env("SMTP_HOST")
+SMTP_PORT = int(_env("SMTP_PORT", "587") or 587)
+SMTP_USER = _env("SMTP_USER")
+SMTP_PASSWORD = _env("SMTP_PASSWORD")
+MAIL_FROM = _env("MAIL_FROM", "Verticlip <no-reply@localhost>")
+# New accounts must confirm their email before creating projects. On by default once SMTP is configured.
+REQUIRE_EMAIL_VERIFICATION = _env("REQUIRE_EMAIL_VERIFICATION", "true" if SMTP_HOST else "false").lower() == "true"
 SECRET_KEY = _env("SECRET_KEY")  # signs nothing public; used to encrypt stored OAuth tokens
 DATA_DIR = Path(_env("DATA_DIR", str(ROOT / "data")))
 DB_PATH = DATA_DIR / "verticlip.db"

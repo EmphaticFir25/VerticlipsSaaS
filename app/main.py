@@ -23,7 +23,7 @@ from starlette.responses import FileResponse, JSONResponse, RedirectResponse
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from . import ai, auth, billing, config, db, media, pipeline, social, worker
+from . import ai, auth, billing, config, db, mailer, media, pipeline, social, worker
 
 PARALLEL = {"free": 1, "pro": 3, "studio": 5}
 FILE_NAME = re.compile(r"^(clip_\d{2}\.(mp4|jpg)|thumb\.jpg)$")
@@ -60,19 +60,27 @@ def require_user(request: Request) -> dict:
     return user
 
 
+def require_verified(user: dict) -> None:
+    if config.REQUIRE_EMAIL_VERIFICATION and not user.get("email_verified"):
+        raise err(403, "Confirm your email first. Use the link we sent, or ask for a new one from your dashboard.")
+
+
 def set_session(resp: Response, token: str) -> None:
     resp.set_cookie(auth.SESSION_COOKIE, token, max_age=auth.SESSION_TTL, httponly=True,
                     secure=config.SECURE_COOKIES, samesite="lax", path="/")
 
 
 def client_ip(request: Request) -> str:
-    fwd = request.headers.get("cf-connecting-ip") or request.headers.get("x-forwarded-for", "")
+    cf = request.headers.get("cf-connecting-ip") if config.TRUST_CLOUDFLARE else None
+    fwd = cf or request.headers.get("x-forwarded-for", "")
     return fwd.split(",")[0].strip() or (request.client.host if request.client else "?")
 
 
 def public_user(user: dict) -> dict:
     return {"id": user["id"], "email": user["email"], "name": user["name"], "plan": user["plan"],
-            "has_subscription": bool(user.get("stripe_subscription")), "created": user["created"]}
+            "has_subscription": bool(user.get("stripe_subscription")), "created": user["created"],
+            "email_verified": bool(user.get("email_verified")),
+            "verification_required": config.REQUIRE_EMAIL_VERIFICATION and not user.get("email_verified")}
 
 
 def public_project(p: dict) -> dict:
@@ -151,6 +159,10 @@ async def signup_page(request: Request):
     return page("signup.html")
 
 
+async def plain_page(request: Request):
+    return page(request.url.path.strip("/") + ".html")
+
+
 async def app_page(request: Request):
     name = request.path_params["name"]
     if name not in APP_PAGES:
@@ -193,9 +205,72 @@ async def signup(request: Request):
     pw_hash = await run_in_threadpool(auth.hash_password, password)
     user = db.create_user(uuid.uuid4().hex[:16], email, name, pw_hash)
     auth.signup_throttle.fail(ip)
+    await send_verification(user)
     resp = JSONResponse({"user": public_user(user)})
     set_session(resp, auth.new_session(user["id"]))
     return resp
+
+
+async def send_verification(user: dict) -> None:
+    link = f"{config.PUBLIC_BASE}/verify?token={auth.new_email_token(user['id'], 'verify')}"
+    try:
+        await run_in_threadpool(mailer.send, user["email"], *mailer.verification_email(link))
+    except Exception as exc:   # a mail outage must not block sign-up; the customer can ask for a new link
+        print(f"[mail] could not send verification to {user['email']}: {exc}")
+
+
+async def resend_verification(request: Request):
+    user = require_user(request)
+    if user.get("email_verified"):
+        return JSONResponse({"ok": True})
+    key = f"verify|{user['id']}"
+    if auth.mail_throttle.blocked(key):
+        raise err(429, "We already sent several emails. Check your inbox and spam folder, or try again in an hour.")
+    auth.mail_throttle.fail(key)
+    await send_verification(user)
+    return JSONResponse({"ok": True})
+
+
+async def verify_email(request: Request):
+    data = await body_json(request)
+    user_id = auth.consume_email_token(data.get("token", ""), "verify")
+    if not user_id:
+        raise err(400, "This link has expired or was already used. Log in and ask for a new one.")
+    db.update_user(user_id, email_verified=1)
+    return JSONResponse({"ok": True})
+
+
+async def forgot_password(request: Request):
+    data = await body_json(request)
+    email = auth.normalize_email(data.get("email", ""))
+    ip_key, mail_key = f"forgot|{client_ip(request)}", f"forgot|{email}"
+    if auth.mail_throttle.blocked(ip_key) or auth.mail_throttle.blocked(mail_key):
+        raise err(429, "Too many requests. Try again in an hour.")
+    auth.mail_throttle.fail(ip_key)
+    user = db.get_user_by_email(email) if auth.valid_email(email) else None
+    if user:
+        auth.mail_throttle.fail(mail_key)
+        link = f"{config.PUBLIC_BASE}/reset?token={auth.new_email_token(user['id'], 'reset')}"
+        try:
+            await run_in_threadpool(mailer.send, user["email"], *mailer.reset_email(link))
+        except Exception as exc:
+            print(f"[mail] could not send reset to {user['email']}: {exc}")
+    # The same answer whether or not the address has an account, so this can't be used to find customers.
+    return JSONResponse({"ok": True})
+
+
+async def reset_password(request: Request):
+    data = await body_json(request)
+    password = str(data.get("password", ""))
+    if len(password) < auth.MIN_PASSWORD or len(password) > 200:
+        raise err(400, f"Use a password of at least {auth.MIN_PASSWORD} characters.")
+    user_id = auth.consume_email_token(data.get("token", ""), "reset")
+    if not user_id:
+        raise err(400, "This link has expired or was already used. Ask for a new reset link.")
+    pw_hash = await run_in_threadpool(auth.hash_password, password)
+    db.update_user(user_id, pw_hash=pw_hash, email_verified=1)   # they proved they own the inbox
+    db.delete_user_sessions(user_id)                             # sign out every device
+    return JSONResponse({"ok": True})
 
 
 async def login(request: Request):
@@ -276,6 +351,7 @@ async def list_projects(request: Request):
 
 async def create_project(request: Request):
     user = require_user(request)
+    require_verified(user)
     data = await body_json(request)
     _check_ai()
     _check_parallel(user)
@@ -303,6 +379,7 @@ async def create_project(request: Request):
 
 async def upload_project(request: Request):
     user = require_user(request)
+    require_verified(user)
     _check_ai()
     _check_parallel(user)
     limit = config.MAX_UPLOAD_MB * 1024 * 1024
@@ -624,6 +701,9 @@ routes = [
     Route("/", landing),
     Route("/login", login_page),
     Route("/signup", signup_page),
+    Route("/forgot", plain_page),
+    Route("/reset", plain_page),
+    Route("/verify", plain_page),
     Route("/terms", legal_page),
     Route("/privacy", legal_page),
     Route("/healthz", healthz),
@@ -631,6 +711,10 @@ routes = [
     Route("/api/auth/signup", signup, methods=["POST"]),
     Route("/api/auth/login", login, methods=["POST"]),
     Route("/api/auth/logout", logout, methods=["POST"]),
+    Route("/api/auth/forgot", forgot_password, methods=["POST"]),
+    Route("/api/auth/reset", reset_password, methods=["POST"]),
+    Route("/api/auth/verify", verify_email, methods=["POST"]),
+    Route("/api/auth/resend", resend_verification, methods=["POST"]),
     Route("/api/me", me, methods=["GET"]),
     Route("/api/me", update_me, methods=["PATCH"]),
     Route("/api/me/password", change_password, methods=["POST"]),
@@ -668,6 +752,9 @@ async def lifespan(app):
     config.MEDIA_DIR.mkdir(parents=True, exist_ok=True)
     if config.SECURE_COOKIES and not config.SECRET_KEY:
         raise RuntimeError("Set SECRET_KEY before running on an https PUBLIC_BASE.")
+    if config.SECURE_COOKIES and not mailer.configured():
+        raise RuntimeError("Set SMTP_HOST (and the other SMTP_* settings) before running on an https PUBLIC_BASE. "
+                           "Customers need email to confirm their address and reset a password.")
     if not config.SECRET_KEY:
         print("[warn] SECRET_KEY is not set. Social account connections are disabled until it is.")
     worker.start(pipeline.run_project)

@@ -31,8 +31,16 @@ CREATE TABLE IF NOT EXISTS users (
     minutes_used REAL NOT NULL DEFAULT 0,
     period_start REAL NOT NULL,
     brand TEXT NOT NULL DEFAULT '{}',
-    created REAL NOT NULL
+    created REAL NOT NULL,
+    email_verified INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS email_tokens (
+    token_hash TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    expires REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS email_tokens_user ON email_tokens(user_id, kind);
 CREATE TABLE IF NOT EXISTS sessions (
     token_hash TEXT PRIMARY KEY,
     user_id TEXT NOT NULL,
@@ -113,6 +121,10 @@ def conn() -> Iterator[sqlite3.Connection]:
         try:
             if str(path) not in _initialized:
                 c.executescript(SCHEMA)
+                cols = {r["name"] for r in c.execute("PRAGMA table_info(users)")}
+                if "email_verified" not in cols:   # database from before email verification existed
+                    c.execute("ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0")
+                    c.execute("UPDATE users SET email_verified = 1")   # existing customers are grandfathered in
                 _initialized.add(str(path))
             yield c
             c.commit()
@@ -158,7 +170,7 @@ def _user(r) -> Optional[dict]:
 
 def update_user(user_id: str, **fields) -> None:
     allowed = {"name", "pw_hash", "plan", "stripe_customer", "stripe_subscription",
-               "minutes_used", "period_start", "brand"}
+               "minutes_used", "period_start", "brand", "email_verified"}
     sets = {k: (json.dumps(v) if k == "brand" else v) for k, v in fields.items() if k in allowed}
     if not sets:
         return
@@ -198,6 +210,24 @@ def delete_session(token_hash: str) -> None:
 def delete_user_sessions(user_id: str, keep: str = "") -> None:
     with conn() as c:
         c.execute("DELETE FROM sessions WHERE user_id = ? AND token_hash != ?", (user_id, keep))
+
+
+# ---------- email tokens (verification and password reset) ----------
+
+def create_email_token(token_hash: str, user_id: str, kind: str, ttl: float) -> None:
+    now = time.time()
+    with conn() as c:
+        c.execute("DELETE FROM email_tokens WHERE expires < ? OR (user_id = ? AND kind = ?)", (now, user_id, kind))
+        c.execute("INSERT INTO email_tokens (token_hash, user_id, kind, expires) VALUES (?,?,?,?)",
+                  (token_hash, user_id, kind, now + ttl))
+
+
+def consume_email_token(token_hash: str, kind: str) -> Optional[str]:
+    """Single use: the row is deleted as it is read."""
+    with conn() as c:
+        r = c.execute("DELETE FROM email_tokens WHERE token_hash = ? AND kind = ? AND expires > ? RETURNING user_id",
+                      (token_hash, kind, time.time())).fetchone()
+    return r["user_id"] if r else None
 
 
 # ---------- projects ----------
