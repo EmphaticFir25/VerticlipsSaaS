@@ -390,7 +390,7 @@
   const PATH = { home: "/", how: "/how-it-works", features: "/features", pricing: "/pricing", faq: "/faq" };
   const fromPath = () => names.find((n) => PATH[n] === (location.pathname.replace(/\/$/, "") || "/")) || location.hash.slice(1);
   function go(name, push) {
-    if (push && PATH[name] !== location.pathname) history.pushState(null, "", PATH[name]);
+    if (push && PATH[name] !== location.pathname) { try { history.pushState(null, "", PATH[name]); } catch { /* opened as a local file */ } }
     document.title = name === "home" ? "Verticlip" : $("#t-" + name).textContent.trim() + " · Verticlip";
     show(name);
   }
