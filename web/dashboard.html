@@ -195,7 +195,14 @@
       const { projects } = await api("/api/projects");
       $("#projCount").textContent = projects.length ? `${projects.length} total` : "";
       $("#grid").innerHTML = projects.length ? projects.map(card).join("")
-        : `<div class="empty" style="grid-column:1/-1"><h3>No projects yet</h3><p>Paste a video link above to make your first clips.</p></div>`;
+        : `<div class="empty" style="grid-column:1/-1;text-align:left;max-width:560px;margin-inline:auto"><h3>Make your first clips</h3>
+            <ol style="margin:14px 0 0;padding-left:20px;display:grid;gap:8px;color:var(--muted)">
+              <li id="obVerify" hidden><b style="color:var(--text)">Confirm your email.</b> Use the link we sent you. It unlocks clip making.</li>
+              <li><b style="color:var(--text)">Paste a video link</b> or upload a file above. Public videos with clear speech work best, and you confirm you have the rights.</li>
+              <li>Review the ranked clips. Edit titles, then download or publish.</li>
+              <li><a href="/accounts" style="text-decoration:underline">Connect YouTube or TikTok</a> to publish in one click. This part is optional.</li>
+            </ol></div>`;
+      VC.loadMe().then((me) => { const li = $("#obVerify"); if (li) li.hidden = !me.user.verification_required; });
       clearTimeout(timer);
       if (projects.some((p) => p.status === "queued" || p.status === "running")) timer = setTimeout(loadProjects, 3000);
     } catch (err) { toast(err.message, true); }
