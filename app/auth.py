@@ -116,7 +116,7 @@ class Throttle:
 
 
 login_throttle = Throttle()
-signup_throttle = Throttle(limit=10, window=3600)
+signup_throttle = Throttle(limit=config.SIGNUPS_PER_HOUR, window=3600)
 mail_throttle = Throttle(limit=5, window=3600)   # reset and verification emails, per address and per network
 
 

@@ -108,6 +108,18 @@ def checkout_url(user: dict, plan: str) -> str:
     return _stripe("checkout/sessions", data)["url"]
 
 
+def cancel_subscription(subscription_id: str) -> None:
+    """Cancel immediately so a deleted account is never billed again. Already-cancelled counts as success."""
+    if not config.STRIPE_SECRET_KEY:
+        return
+    try:
+        r = requests.delete(f"{STRIPE_API}/subscriptions/{subscription_id}", auth=(config.STRIPE_SECRET_KEY, ""), timeout=30)
+    except requests.RequestException as exc:
+        raise BillingError("Could not reach Stripe to cancel your subscription. Try again.") from exc
+    if r.status_code >= 400 and r.status_code != 404:
+        raise BillingError("Stripe could not cancel your subscription. Cancel it from Plan & billing first.")
+
+
 def portal_url(user: dict) -> str:
     if not user.get("stripe_customer"):
         raise BillingError("You don't have a subscription to manage yet.")

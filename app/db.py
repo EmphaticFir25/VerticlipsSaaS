@@ -105,7 +105,28 @@ CREATE TABLE IF NOT EXISTS stripe_events (
     id TEXT PRIMARY KEY,
     created REAL NOT NULL
 );
+CREATE TABLE IF NOT EXISTS reports (
+    id TEXT PRIMARY KEY,
+    kind TEXT NOT NULL,
+    url TEXT NOT NULL DEFAULT '',
+    name TEXT NOT NULL DEFAULT '',
+    email TEXT NOT NULL DEFAULT '',
+    details TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'open',
+    created REAL NOT NULL
+);
 """
+
+# Columns added after the first release. Existing databases get them on start-up.
+USER_COLUMNS = {
+    "consented_at": "REAL",
+    "suspended": "INTEGER NOT NULL DEFAULT 0",
+    "strikes": "INTEGER NOT NULL DEFAULT 0",
+    "notify_email": "INTEGER NOT NULL DEFAULT 1",
+    "totp_secret": "TEXT",
+    "totp_enabled": "INTEGER NOT NULL DEFAULT 0",
+    "recovery_codes": "TEXT NOT NULL DEFAULT '[]'",
+}
 
 PROJECT_FIELDS = ("title", "source_url", "source_kind", "status", "stage", "progress", "message",
                   "settings", "duration", "minutes_charged", "has_thumb")
@@ -125,6 +146,9 @@ def conn() -> Iterator[sqlite3.Connection]:
                 if "email_verified" not in cols:   # database from before email verification existed
                     c.execute("ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0")
                     c.execute("UPDATE users SET email_verified = 1")   # existing customers are grandfathered in
+                for name, ddl in USER_COLUMNS.items():
+                    if name not in cols:
+                        c.execute(f"ALTER TABLE users ADD COLUMN {name} {ddl}")
                 _initialized.add(str(path))
             yield c
             c.commit()
@@ -138,11 +162,11 @@ def _row(r: Optional[sqlite3.Row]) -> Optional[dict]:
 
 # ---------- users ----------
 
-def create_user(user_id: str, email: str, name: str, pw_hash: str) -> dict:
+def create_user(user_id: str, email: str, name: str, pw_hash: str, consented_at: Optional[float] = None) -> dict:
     now = time.time()
     with conn() as c:
-        c.execute("INSERT INTO users (id, email, name, pw_hash, period_start, created) VALUES (?,?,?,?,?,?)",
-                  (user_id, email, name, pw_hash, now, now))
+        c.execute("INSERT INTO users (id, email, name, pw_hash, period_start, created, consented_at) "
+                  "VALUES (?,?,?,?,?,?,?)", (user_id, email, name, pw_hash, now, now, consented_at))
     return get_user(user_id)
 
 
@@ -170,7 +194,8 @@ def _user(r) -> Optional[dict]:
 
 def update_user(user_id: str, **fields) -> None:
     allowed = {"name", "pw_hash", "plan", "stripe_customer", "stripe_subscription",
-               "minutes_used", "period_start", "brand", "email_verified"}
+               "minutes_used", "period_start", "brand", "email_verified", "consented_at", "suspended",
+               "strikes", "notify_email", "totp_secret", "totp_enabled", "recovery_codes"}
     sets = {k: (json.dumps(v) if k == "brand" else v) for k, v in fields.items() if k in allowed}
     if not sets:
         return
@@ -210,6 +235,83 @@ def delete_session(token_hash: str) -> None:
 def delete_user_sessions(user_id: str, keep: str = "") -> None:
     with conn() as c:
         c.execute("DELETE FROM sessions WHERE user_id = ? AND token_hash != ?", (user_id, keep))
+
+
+# ---------- account lifecycle: delete, export, retention ----------
+
+def delete_user_everything(user_id: str) -> list[str]:
+    """Remove the account and every row that belongs to it. Returns the project ids whose files must go too."""
+    with conn() as c:
+        pids = [r["id"] for r in c.execute("SELECT id FROM projects WHERE user_id = ?", (user_id,))]
+        for table in ("publishes", "clips", "projects", "social_accounts", "oauth_states", "sessions", "email_tokens"):
+            c.execute(f"DELETE FROM {table} WHERE user_id = ?", (user_id,))
+        c.execute("DELETE FROM users WHERE id = ?", (user_id,))
+    return pids
+
+
+def export_user(user_id: str) -> dict:
+    """Everything we hold about a customer, without secrets (password hash, OAuth tokens, 2FA secret)."""
+    with conn() as c:
+        u = _row(c.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()) or {}
+        for secret in ("pw_hash", "totp_secret", "recovery_codes"):
+            u.pop(secret, None)
+        projects = [dict(r) for r in c.execute("SELECT * FROM projects WHERE user_id = ? ORDER BY created", (user_id,))]
+        clips = [dict(r) for r in c.execute("SELECT * FROM clips WHERE user_id = ? ORDER BY project_id, idx", (user_id,))]
+        accounts = [dict(r) for r in c.execute("SELECT id, platform, external_id, name, created FROM social_accounts "
+                                               "WHERE user_id = ?", (user_id,))]
+        pubs = [dict(r) for r in c.execute("SELECT * FROM publishes WHERE user_id = ?", (user_id,))]
+    for p in projects:
+        p["settings"] = json.loads(p.get("settings") or "{}")
+    for cl in clips:
+        cl["data"] = json.loads(cl.get("data") or "{}")
+    return {"account": u, "projects": projects, "clips": clips, "connected_accounts": accounts, "publishes": pubs}
+
+
+def projects_older_than(cutoff: float) -> list[dict]:
+    with conn() as c:
+        rows = c.execute("SELECT * FROM projects WHERE created < ? AND status NOT IN ('queued','running')",
+                         (cutoff,)).fetchall()
+    return [_project(r) for r in rows]
+
+
+def finished_projects_older_than(cutoff: float) -> list[dict]:
+    with conn() as c:
+        rows = c.execute("SELECT * FROM projects WHERE updated < ? AND status NOT IN ('queued','running')",
+                         (cutoff,)).fetchall()
+    return [_project(r) for r in rows]
+
+
+def stale_unverified_users(cutoff: float) -> list[str]:
+    with conn() as c:
+        rows = c.execute("SELECT id FROM users WHERE email_verified = 0 AND created < ? "
+                         "AND NOT EXISTS (SELECT 1 FROM projects WHERE projects.user_id = users.id)", (cutoff,)).fetchall()
+    return [r["id"] for r in rows]
+
+
+def purge_expired() -> None:
+    now = time.time()
+    with conn() as c:
+        c.execute("DELETE FROM sessions WHERE expires < ?", (now,))
+        c.execute("DELETE FROM email_tokens WHERE expires < ?", (now,))
+        c.execute("DELETE FROM oauth_states WHERE created < ?", (now - 1800,))
+
+
+# ---------- reports (copyright and abuse) ----------
+
+def create_report(report_id: str, kind: str, url: str, name: str, email: str, details: str) -> None:
+    with conn() as c:
+        c.execute("INSERT INTO reports (id, kind, url, name, email, details, created) VALUES (?,?,?,?,?,?,?)",
+                  (report_id, kind, url, name, email, details, time.time()))
+
+
+def list_reports(status: str = "open") -> list[dict]:
+    with conn() as c:
+        return [dict(r) for r in c.execute("SELECT * FROM reports WHERE status = ? ORDER BY created", (status,))]
+
+
+def set_report_status(report_id: str, status: str) -> bool:
+    with conn() as c:
+        return c.execute("UPDATE reports SET status = ? WHERE id = ?", (status, report_id)).rowcount > 0
 
 
 # ---------- email tokens (verification and password reset) ----------

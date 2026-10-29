@@ -40,6 +40,8 @@ os.environ.update({
     "STRIPE_PRICE_PRO": "price_pro",
     "STRIPE_PRICE_STUDIO": "price_studio",
     "WORKERS": "1",
+    "HIBP_CHECK": "false",
+    "SIGNUPS_PER_HOUR": "10000",
 })
 
 SPEECH = ("Most founders think the hard part is the idea. It is not. The hard part is year two. "

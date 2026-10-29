@@ -13,7 +13,7 @@ H = {"X-Verticlip": "1"}
 
 def signup(base, email, password="password123"):
     s = requests.Session()
-    r = s.post(f"{base}/api/auth/signup", json={"email": email, "password": password, "name": "T"}, headers=H)
+    r = s.post(f"{base}/api/auth/signup", json={"email": email, "password": password, "name": "T", "agree": True}, headers=H)
     assert r.status_code == 200, r.text
     return s, r.json()["user"]
 
@@ -70,7 +70,7 @@ def test_upload_to_clips_and_isolation(server, sample_video):
     with open(sample_video, "rb") as f:
         r = s.post(f"{server}/api/projects/upload", headers=H,
                    files={"file": ("my talk.mp4", f, "video/mp4")},
-                   data={"settings": json.dumps({"length": "short", "max_clips": 50, "caption_style": "karaoke"})})
+                   data={"rights": "true", "settings": json.dumps({"length": "short", "max_clips": 50, "caption_style": "karaoke"})})
     assert r.status_code == 201, r.text
     project = r.json()["project"]
     assert project["settings"]["max_clips"] == 6  # capped by the free plan
@@ -111,14 +111,14 @@ def test_upload_to_clips_and_isolation(server, sample_video):
 
 def test_upload_rejects_non_video(server):
     s, _ = signup(server, "notvideo@example.com")
-    r = s.post(f"{server}/api/projects/upload", headers=H, files={"file": ("x.mp4", b"hello", "video/mp4")})
+    r = s.post(f"{server}/api/projects/upload", headers=H, files={"file": ("x.mp4", b"hello", "video/mp4")}, data={"rights": "true"})
     assert r.status_code == 400
 
 
 def test_private_links_are_refused(server):
     s, _ = signup(server, "ssrf@example.com")
     for url in ("http://127.0.0.1/video.mp4", "http://localhost:8080/x", "file:///etc/passwd", "http://10.0.0.5/a"):
-        r = s.post(f"{server}/api/projects", json={"url": url}, headers=H)
+        r = s.post(f"{server}/api/projects", json={"url": url, "rights": True}, headers=H)
         assert r.status_code == 400, url
 
 

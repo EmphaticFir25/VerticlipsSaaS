@@ -31,6 +31,22 @@ SECURE_COOKIES = PUBLIC_BASE.startswith("https://")
 # Only honour CF-Connecting-IP when the app really sits behind Cloudflare; otherwise anyone can forge it.
 TRUST_CLOUDFLARE = _env("TRUST_CLOUDFLARE", "false").lower() == "true"
 
+# ---------- who is behind the service (shown on the legal pages) ----------
+LEGAL_NAME = _env("LEGAL_NAME", "Verticlip")
+LEGAL_ADDRESS = _env("LEGAL_ADDRESS")
+CONTACT_EMAIL = _env("CONTACT_EMAIL", "support@localhost")
+PRIVACY_EMAIL = _env("PRIVACY_EMAIL") or CONTACT_EMAIL
+ABUSE_EMAIL = _env("ABUSE_EMAIL") or CONTACT_EMAIL        # also the designated DMCA agent address
+SECURITY_EMAIL = _env("SECURITY_EMAIL") or CONTACT_EMAIL
+JURISDICTION = _env("JURISDICTION", "the jurisdiction where the operator is established")
+MIN_AGE = _int("MIN_AGE", 16)
+SIGNUPS_PER_HOUR = _int("SIGNUPS_PER_HOUR", 10)   # per network address
+
+# ---------- how long we keep customer data (0 turns a rule off) ----------
+SOURCE_RETENTION_DAYS = _int("SOURCE_RETENTION_DAYS", 14)       # the uploaded or downloaded original video
+PROJECT_RETENTION_DAYS = _int("PROJECT_RETENTION_DAYS", 90)     # clips, transcript, thumbnails
+UNVERIFIED_ACCOUNT_DAYS = _int("UNVERIFIED_ACCOUNT_DAYS", 7)    # accounts that never confirmed their email
+
 # ---------- email (verification and password reset) ----------
 SMTP_HOST = _env("SMTP_HOST")
 SMTP_PORT = int(_env("SMTP_PORT", "587") or 587)

@@ -5,9 +5,11 @@ Run locally:  uvicorn app.main:app --port 33214
 from __future__ import annotations
 
 import contextlib
+import html
 import json
 import re
 import shutil
+import time
 import uuid
 from pathlib import Path
 from typing import Any, Optional
@@ -19,11 +21,11 @@ from starlette.exceptions import HTTPException
 from starlette.middleware import Middleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
-from starlette.responses import FileResponse, JSONResponse, RedirectResponse
+from starlette.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from . import ai, auth, billing, config, db, mailer, media, pipeline, social, worker
+from . import ai, auth, billing, config, db, janitor, mailer, media, pipeline, social, worker
 
 PARALLEL = {"free": 1, "pro": 3, "studio": 5}
 FILE_NAME = re.compile(r"^(clip_\d{2}\.(mp4|jpg)|thumb\.jpg)$")
@@ -57,12 +59,19 @@ def require_user(request: Request) -> dict:
     user = current_user(request)
     if user is None:
         raise err(401, "Please log in.")
+    if user.get("suspended"):
+        raise err(403, "This account is suspended. Contact support if you think this is a mistake.")
     return user
 
 
 def require_verified(user: dict) -> None:
     if config.REQUIRE_EMAIL_VERIFICATION and not user.get("email_verified"):
         raise err(403, "Confirm your email first. Use the link we sent, or ask for a new one from your dashboard.")
+
+
+def require_rights(value) -> None:
+    if value is not True and str(value).lower() != "true":
+        raise err(400, "Confirm that you own this video or have permission to clip it.")
 
 
 def set_session(resp: Response, token: str) -> None:
@@ -79,7 +88,7 @@ def client_ip(request: Request) -> str:
 def public_user(user: dict) -> dict:
     return {"id": user["id"], "email": user["email"], "name": user["name"], "plan": user["plan"],
             "has_subscription": bool(user.get("stripe_subscription")), "created": user["created"],
-            "email_verified": bool(user.get("email_verified")),
+            "email_verified": bool(user.get("email_verified")), "notify_email": bool(user.get("notify_email", 1)),
             "verification_required": config.REQUIRE_EMAIL_VERIFICATION and not user.get("email_verified")}
 
 
@@ -100,9 +109,20 @@ def public_clip(c: dict) -> dict:
     return out
 
 
-def page(name: str, status: int = 200) -> FileResponse:
-    return FileResponse(config.WEB_DIR / name, status_code=status, media_type="text/html",
-                        headers={"Cache-Control": "no-cache"})
+def _tokens() -> dict:
+    return {"LEGAL_NAME": config.LEGAL_NAME, "LEGAL_ADDRESS": config.LEGAL_ADDRESS or "(address to be added)",
+            "CONTACT_EMAIL": config.CONTACT_EMAIL, "PRIVACY_EMAIL": config.PRIVACY_EMAIL,
+            "ABUSE_EMAIL": config.ABUSE_EMAIL, "SECURITY_EMAIL": config.SECURITY_EMAIL,
+            "JURISDICTION": config.JURISDICTION, "MIN_AGE": str(config.MIN_AGE),
+            "SOURCE_DAYS": str(config.SOURCE_RETENTION_DAYS), "PROJECT_DAYS": str(config.PROJECT_RETENTION_DAYS),
+            "PUBLIC_BASE": config.PUBLIC_BASE}
+
+
+def page(name: str, status: int = 200) -> Response:
+    text = (config.WEB_DIR / name).read_text(encoding="utf-8")
+    for key, value in _tokens().items():
+        text = text.replace("{{" + key + "}}", html.escape(value))
+    return Response(text, status_code=status, media_type="text/html", headers={"Cache-Control": "no-cache"})
 
 
 # ---------- middleware ----------
@@ -202,8 +222,10 @@ async def signup(request: Request):
         raise err(400, f"Use a password of at least {auth.MIN_PASSWORD} characters.")
     if db.get_user_by_email(email):
         raise err(409, "An account with that email already exists. Log in instead.")
+    if data.get("agree") is not True:
+        raise err(400, f"Confirm that you are at least {config.MIN_AGE} years old and accept the Terms and Privacy Policy.")
     pw_hash = await run_in_threadpool(auth.hash_password, password)
-    user = db.create_user(uuid.uuid4().hex[:16], email, name, pw_hash)
+    user = db.create_user(uuid.uuid4().hex[:16], email, name, pw_hash, consented_at=time.time())
     auth.signup_throttle.fail(ip)
     await send_verification(user)
     resp = JSONResponse({"user": public_user(user)})
@@ -238,6 +260,36 @@ async def verify_email(request: Request):
         raise err(400, "This link has expired or was already used. Log in and ask for a new one.")
     db.update_user(user_id, email_verified=1)
     return JSONResponse({"ok": True})
+
+
+report_throttle = auth.Throttle(limit=5, window=3600)
+
+
+async def submit_report(request: Request):
+    """Copyright and abuse reports. Public on purpose: rights holders are not customers."""
+    data = await body_json(request)
+    ip = f"report|{client_ip(request)}"
+    if report_throttle.blocked(ip):
+        raise err(429, "Too many reports from this network. Try again later.")
+    kind = "copyright" if data.get("kind") == "copyright" else "abuse"
+    url, details = str(data.get("url", "")).strip()[:500], str(data.get("details", "")).strip()[:4000]
+    name, email = str(data.get("name", "")).strip()[:120], auth.normalize_email(data.get("email", ""))
+    if not url or len(details) < 20:
+        raise err(400, "Tell us where the content is and what the problem is (at least a couple of sentences).")
+    if not auth.valid_email(email):
+        raise err(400, "Enter an email address we can reach you at.")
+    if kind == "copyright" and not (data.get("good_faith") is True and data.get("accurate") is True and name):
+        raise err(400, "A copyright notice needs your name and both confirmations.")
+    report_throttle.fail(ip)
+    rid = uuid.uuid4().hex[:12]
+    db.create_report(rid, kind, url, name, email, details)
+    body = (f"New {kind} report {rid}\n\nFrom: {name} <{email}>\nContent: {url}\n\n{details}\n\n"
+            f"Review with: python -m app.admin reports")
+    try:
+        await run_in_threadpool(mailer.send, config.ABUSE_EMAIL, f"[Verticlip] {kind} report {rid}", body)
+    except Exception as exc:
+        print(f"[mail] could not forward report {rid}: {exc}")
+    return JSONResponse({"ok": True, "id": rid})
 
 
 async def forgot_password(request: Request):
@@ -286,6 +338,8 @@ async def login(request: Request):
         auth.login_throttle.fail(key)
         raise err(401, "Wrong email or password.")
     auth.login_throttle.clear(key)
+    if user.get("suspended"):
+        raise err(403, "This account is suspended. Contact support if you think this is a mistake.")
     resp = JSONResponse({"user": public_user(user)})
     set_session(resp, auth.new_session(user["id"]))
     return resp
@@ -307,11 +361,58 @@ async def me(request: Request):
     })
 
 
+async def delete_me(request: Request):
+    user = require_user(request)
+    data = await body_json(request)
+    ok = await run_in_threadpool(auth.verify_password, str(data.get("password", "")), user["pw_hash"])
+    if not ok:
+        raise err(403, "That password is not right.")
+    if db.active_project_count(user["id"]):
+        raise err(409, "Cancel your running projects before deleting your account.")
+    if user.get("stripe_subscription"):
+        try:
+            await run_in_threadpool(billing.cancel_subscription, user["stripe_subscription"])
+        except billing.BillingError as exc:
+            raise err(502, str(exc))
+    logo = (user.get("brand") or {}).get("logo")
+    for pid in db.delete_user_everything(user["id"]):
+        shutil.rmtree(pipeline.project_dir(pid), ignore_errors=True)
+    if logo:
+        (config.MEDIA_DIR / "brand" / Path(logo).name).unlink(missing_ok=True)
+    resp = JSONResponse({"ok": True})
+    resp.delete_cookie(auth.SESSION_COOKIE, path="/")
+    return resp
+
+
+export_throttle = auth.Throttle(limit=5, window=3600)
+
+
+async def export_me(request: Request):
+    user = require_user(request)
+    if export_throttle.blocked(user["id"]):
+        raise err(429, "You can download your data a few times an hour. Try again later.")
+    export_throttle.fail(user["id"])
+    data = db.export_user(user["id"])
+    for p in data["projects"]:
+        t = pipeline.project_dir(p["id"]) / "transcript.json"
+        if t.is_file():
+            try:
+                p["transcript"] = " ".join(w.get("word", "") for w in json.loads(t.read_text()))
+            except (ValueError, OSError):
+                pass
+    data["exported_at"] = time.time()
+    data["note"] = "Video files are not included here. Download clips from each project page while they are available."
+    return Response(json.dumps(data, indent=2), media_type="application/json",
+                    headers={"Content-Disposition": 'attachment; filename="verticlip-data.json"'})
+
+
 async def update_me(request: Request):
     user = require_user(request)
     data = await body_json(request)
     if "name" in data:
         db.update_user(user["id"], name=str(data["name"]).strip()[:80])
+    if isinstance(data.get("notify_email"), bool):
+        db.update_user(user["id"], notify_email=int(data["notify_email"]))
     return JSONResponse({"user": public_user(db.get_user(user["id"]))})
 
 
@@ -353,6 +454,7 @@ async def create_project(request: Request):
     user = require_user(request)
     require_verified(user)
     data = await body_json(request)
+    require_rights(data.get("rights"))
     _check_ai()
     _check_parallel(user)
     try:
@@ -385,7 +487,8 @@ async def upload_project(request: Request):
     limit = config.MAX_UPLOAD_MB * 1024 * 1024
     if int(request.headers.get("content-length") or 0) > limit + 1024 * 1024:
         raise err(413, f"Files can be up to {config.MAX_UPLOAD_MB} MB.")
-    form = await request.form(max_files=1, max_fields=5, max_part_size=64 * 1024)
+    form = await request.form(max_files=1, max_fields=6, max_part_size=64 * 1024)
+    require_rights(form.get("rights"))
     upload = form.get("file")
     if upload is None or not hasattr(upload, "read"):
         raise err(400, "Choose a video file.")
@@ -701,6 +804,10 @@ routes = [
     Route("/", landing),
     Route("/login", login_page),
     Route("/signup", signup_page),
+    Route("/copyright", plain_page),
+    Route("/report", plain_page),
+    Route("/refunds", plain_page),
+    Route("/support", plain_page),
     Route("/forgot", plain_page),
     Route("/reset", plain_page),
     Route("/verify", plain_page),
@@ -717,7 +824,10 @@ routes = [
     Route("/api/auth/resend", resend_verification, methods=["POST"]),
     Route("/api/me", me, methods=["GET"]),
     Route("/api/me", update_me, methods=["PATCH"]),
+    Route("/api/me", delete_me, methods=["DELETE"]),
+    Route("/api/me/export", export_me, methods=["GET"]),
     Route("/api/me/password", change_password, methods=["POST"]),
+    Route("/api/report", submit_report, methods=["POST"]),
     Route("/api/projects", list_projects, methods=["GET"]),
     Route("/api/projects", create_project, methods=["POST"]),
     Route("/api/projects/upload", upload_project, methods=["POST"]),
@@ -752,12 +862,16 @@ async def lifespan(app):
     config.MEDIA_DIR.mkdir(parents=True, exist_ok=True)
     if config.SECURE_COOKIES and not config.SECRET_KEY:
         raise RuntimeError("Set SECRET_KEY before running on an https PUBLIC_BASE.")
+    if config.SECURE_COOKIES and not (config.LEGAL_ADDRESS and config.CONTACT_EMAIL != "support@localhost"):
+        raise RuntimeError("Set LEGAL_NAME, LEGAL_ADDRESS and CONTACT_EMAIL (and PRIVACY_EMAIL, ABUSE_EMAIL if different) "
+                           "before running on an https PUBLIC_BASE. The legal pages and takedown process need them.")
     if config.SECURE_COOKIES and not mailer.configured():
         raise RuntimeError("Set SMTP_HOST (and the other SMTP_* settings) before running on an https PUBLIC_BASE. "
                            "Customers need email to confirm their address and reset a password.")
     if not config.SECRET_KEY:
         print("[warn] SECRET_KEY is not set. Social account connections are disabled until it is.")
     worker.start(pipeline.run_project)
+    janitor.start()
     yield
 
 
