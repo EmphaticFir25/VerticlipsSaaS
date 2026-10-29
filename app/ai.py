@@ -10,7 +10,7 @@ from typing import Callable
 
 import requests
 
-from . import config
+from . import config, status
 
 log = logging.getLogger("verticlip.ai")
 
@@ -22,6 +22,18 @@ class AIError(RuntimeError):
 
 
 def _post_with_retry(send: Callable[[], requests.Response], label: str, attempts: int = 4) -> requests.Response:
+    """Retry transient failures, and tell the status page whether the call finally worked."""
+    provider = "transcription" if label.lower().startswith(("whisper", "transcri")) else "scoring"
+    try:
+        resp = _post_with_retry_inner(send, label, attempts)
+    except AIError:
+        status.record(provider, False)
+        raise
+    status.record(provider, True)
+    return resp
+
+
+def _post_with_retry_inner(send: Callable[[], requests.Response], label: str, attempts: int = 4) -> requests.Response:
     delay = 2.0
     for attempt in range(attempts):
         try:

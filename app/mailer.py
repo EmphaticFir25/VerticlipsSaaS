@@ -8,7 +8,7 @@ import ssl
 import time
 from email.message import EmailMessage
 
-from . import config
+from . import config, status
 
 
 def configured() -> bool:
@@ -16,6 +16,17 @@ def configured() -> bool:
 
 
 def send(to: str, subject: str, body: str) -> None:
+    try:
+        _send(to, subject, body)
+    except Exception:
+        if configured():
+            status.record("email", False)
+        raise
+    if configured():
+        status.record("email", True)
+
+
+def _send(to: str, subject: str, body: str) -> None:
     if not configured():
         config.DATA_DIR.mkdir(parents=True, exist_ok=True)
         path = config.DATA_DIR / "outbox.jsonl"

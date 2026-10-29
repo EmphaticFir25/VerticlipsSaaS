@@ -105,6 +105,28 @@ CREATE TABLE IF NOT EXISTS stripe_events (
     id TEXT PRIMARY KEY,
     created REAL NOT NULL
 );
+CREATE TABLE IF NOT EXISTS testimonials (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT '',
+    quote TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    created REAL NOT NULL
+);
+CREATE TABLE IF NOT EXISTS incidents (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    level TEXT NOT NULL,
+    title TEXT NOT NULL,
+    body TEXT NOT NULL DEFAULT '',
+    started REAL NOT NULL,
+    updated REAL NOT NULL,
+    resolved REAL
+);
+CREATE TABLE IF NOT EXISTS status_samples (
+    ts REAL PRIMARY KEY,
+    level INTEGER NOT NULL
+);
 CREATE TABLE IF NOT EXISTS reports (
     id TEXT PRIMARY KEY,
     kind TEXT NOT NULL,
@@ -244,7 +266,7 @@ def delete_user_everything(user_id: str) -> list[str]:
     """Remove the account and every row that belongs to it. Returns the project ids whose files must go too."""
     with conn() as c:
         pids = [r["id"] for r in c.execute("SELECT id FROM projects WHERE user_id = ?", (user_id,))]
-        for table in ("publishes", "clips", "projects", "social_accounts", "oauth_states", "sessions", "email_tokens"):
+        for table in ("publishes", "clips", "projects", "social_accounts", "oauth_states", "sessions", "email_tokens", "testimonials"):
             c.execute(f"DELETE FROM {table} WHERE user_id = ?", (user_id,))
         c.execute("DELETE FROM users WHERE id = ?", (user_id,))
     return pids
@@ -261,11 +283,12 @@ def export_user(user_id: str) -> dict:
         accounts = [dict(r) for r in c.execute("SELECT id, platform, external_id, name, created FROM social_accounts "
                                                "WHERE user_id = ?", (user_id,))]
         pubs = [dict(r) for r in c.execute("SELECT * FROM publishes WHERE user_id = ?", (user_id,))]
+        quote = [dict(r) for r in c.execute("SELECT name, role, quote, status, created FROM testimonials WHERE user_id = ?", (user_id,))]
     for p in projects:
         p["settings"] = json.loads(p.get("settings") or "{}")
     for cl in clips:
         cl["data"] = json.loads(cl.get("data") or "{}")
-    return {"account": u, "projects": projects, "clips": clips, "connected_accounts": accounts, "publishes": pubs}
+    return {"account": u, "projects": projects, "clips": clips, "connected_accounts": accounts, "publishes": pubs, "testimonials": quote}
 
 
 def projects_older_than(cutoff: float) -> list[dict]:
@@ -295,6 +318,89 @@ def purge_expired() -> None:
         c.execute("DELETE FROM sessions WHERE expires < ?", (now,))
         c.execute("DELETE FROM email_tokens WHERE expires < ?", (now,))
         c.execute("DELETE FROM oauth_states WHERE created < ?", (now - 1800,))
+
+
+# ---------- testimonials (only ever shown after the customer consents and the operator approves) ----------
+
+def done_project_count(user_id: str) -> int:
+    with conn() as c:
+        return c.execute("SELECT COUNT(*) FROM projects WHERE user_id = ? AND status = 'done'", (user_id,)).fetchone()[0]
+
+
+def save_testimonial(user_id: str, name: str, role: str, quote: str) -> None:
+    """One per customer. Editing it sends it back for approval."""
+    import uuid
+    with conn() as c:
+        c.execute("DELETE FROM testimonials WHERE user_id = ?", (user_id,))
+        c.execute("INSERT INTO testimonials (id, user_id, name, role, quote, status, created) VALUES (?,?,?,?,?,'pending',?)",
+                  (uuid.uuid4().hex[:10], user_id, name, role, quote, time.time()))
+
+
+def get_testimonial(user_id: str) -> Optional[dict]:
+    with conn() as c:
+        return _row(c.execute("SELECT * FROM testimonials WHERE user_id = ?", (user_id,)).fetchone())
+
+
+def delete_testimonial(user_id: str) -> None:
+    with conn() as c:
+        c.execute("DELETE FROM testimonials WHERE user_id = ?", (user_id,))
+
+
+def list_testimonials(status: str, limit: int = 50) -> list[dict]:
+    with conn() as c:
+        return [dict(r) for r in c.execute("SELECT id, name, role, quote, status, created FROM testimonials "
+                                           "WHERE status = ? ORDER BY created DESC LIMIT ?", (status, limit))]
+
+
+def set_testimonial_status(testimonial_id: str, status: str) -> bool:
+    with conn() as c:
+        return c.execute("UPDATE testimonials SET status = ? WHERE id = ?", (status, testimonial_id)).rowcount > 0
+
+
+# ---------- status page: incidents and uptime samples ----------
+
+def open_incident(level: str, title: str, body: str = "") -> int:
+    now = time.time()
+    with conn() as c:
+        return c.execute("INSERT INTO incidents (level, title, body, started, updated) VALUES (?,?,?,?,?)",
+                         (level, title, body, now, now)).lastrowid
+
+
+def update_incident(incident_id: int, body: str, resolve: bool = False) -> bool:
+    now = time.time()
+    with conn() as c:
+        return c.execute("UPDATE incidents SET body = ?, updated = ?, resolved = ? WHERE id = ?",
+                         (body, now, now if resolve else None, incident_id)).rowcount > 0
+
+
+def resolve_incident(incident_id: int) -> bool:
+    now = time.time()
+    with conn() as c:
+        return c.execute("UPDATE incidents SET resolved = ?, updated = ? WHERE id = ? AND resolved IS NULL",
+                         (now, now, incident_id)).rowcount > 0
+
+
+def list_incidents(since: float) -> list[dict]:
+    with conn() as c:
+        return [dict(r) for r in c.execute("SELECT * FROM incidents WHERE resolved IS NULL OR resolved > ? "
+                                           "ORDER BY started DESC", (since,))]
+
+
+def add_status_sample(ts: float, level: int) -> None:
+    with conn() as c:
+        c.execute("INSERT OR REPLACE INTO status_samples (ts, level) VALUES (?,?)", (ts, level))
+        c.execute("DELETE FROM status_samples WHERE ts < ?", (ts - 100 * 86400,))
+
+
+def status_samples(since: float) -> list[tuple[float, int]]:
+    with conn() as c:
+        return [(r["ts"], r["level"]) for r in c.execute("SELECT ts, level FROM status_samples WHERE ts >= ? ORDER BY ts", (since,))]
+
+
+def oldest_queued_age(now: float) -> float:
+    with conn() as c:
+        r = c.execute("SELECT MIN(created) AS t FROM projects WHERE status = 'queued'").fetchone()
+    return now - r["t"] if r and r["t"] else 0.0
 
 
 # ---------- reports (copyright and abuse) ----------

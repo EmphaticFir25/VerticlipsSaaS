@@ -29,6 +29,9 @@ The code covers the engineering side. These items need you, an account, or a pro
 - [ ] Create a Cloudflare Turnstile widget and set `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET`.
 - [ ] Create a Sentry project (optional) and set `SENTRY_DSN`. Add an uptime monitor (UptimeRobot, Better Stack) on `/healthz`.
 - [ ] Write down who handles a breach: `docs/INCIDENT_RESPONSE.md`.
+- [ ] Decide `LINK_POLICY`: `attest` (customers confirm rights) or `owned` (only videos from a YouTube channel the customer connected). `owned` is the safer choice for copyright risk but means other sites need file uploads.
+- [ ] Approve real customer quotes only (`python -m app.admin testimonials`), and remove one the moment its author asks.
+- [ ] Add an outside uptime monitor on `/healthz` (the built-in `/status` page can't report when the whole server is down).
 - [ ] Run an accessibility pass with a real screen reader (VoiceOver or NVDA). The automated axe checks pass, but they find only part of the problems.
 
 ## Before each release

@@ -6,6 +6,10 @@
   suspend <email> / unsuspend <email>
   delete-user <email>         delete an account and all its data
   close-report <report_id>    mark a report handled without action
+  testimonials                list customer quotes waiting for approval
+  approve <id> / reject <id>  publish a quote on the website, or decline it
+  incident open <degraded|outage|maintenance> "<title>" ["<details>"]
+  incident update <id> "<details>"   |   incident resolve <id>   |   incident list
 """
 from __future__ import annotations
 
@@ -72,6 +76,25 @@ def main(argv: list[str]) -> None:
         for pid in db.delete_user_everything(u["id"]):
             shutil.rmtree(pipeline.project_dir(pid), ignore_errors=True)
         print(f"Deleted {u['email']}")
+    elif cmd == "testimonials":
+        for t in db.list_testimonials("pending"):
+            print(f"{t['id']}  {t['name']}, {t['role'] or '-'}\n    \"{t['quote']}\"\n")
+    elif cmd in ("approve", "reject") and args:
+        print("done" if db.set_testimonial_status(args[0], "approved" if cmd == "approve" else "rejected") else "no such quote")
+    elif cmd == "incident" and args:
+        sub, rest = args[0], args[1:]
+        if sub == "open" and len(rest) >= 2 and rest[0] in ("degraded", "outage", "maintenance"):
+            print("opened incident", db.open_incident(rest[0], rest[1], rest[2] if len(rest) > 2 else ""))
+        elif sub == "update" and len(rest) >= 2 and rest[0].isdigit():
+            print("updated" if db.update_incident(int(rest[0]), rest[1]) else "no such incident")
+        elif sub == "resolve" and rest and rest[0].isdigit():
+            print("resolved" if db.resolve_incident(int(rest[0])) else "no open incident with that id")
+        elif sub == "list":
+            import time as _t
+            for i in db.list_incidents(_t.time() - 14 * 86400):
+                print(i["id"], i["level"], "open" if i["resolved"] is None else "resolved", i["title"])
+        else:
+            print(__doc__)
     elif cmd == "close-report" and args:
         print("closed" if db.set_report_status(args[0], "closed") else "no such report")
     else:

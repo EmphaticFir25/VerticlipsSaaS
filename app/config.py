@@ -42,6 +42,10 @@ JURISDICTION = _env("JURISDICTION", "the Commonwealth of Massachusetts, United S
 MIN_AGE = _int("MIN_AGE", 16)
 SIGNUPS_PER_HOUR = _int("SIGNUPS_PER_HOUR", 10)   # per network address
 
+# "attest": customers confirm they have the rights (default). "owned": a pasted link must be a YouTube video from a
+# channel the customer has connected (proved by Google sign-in); everything else must be uploaded as a file.
+LINK_POLICY = _env("LINK_POLICY", "attest").lower() if _env("LINK_POLICY", "attest").lower() in ("attest", "owned") else "attest"
+
 # ---------- how long we keep customer data (0 turns a rule off) ----------
 SOURCE_RETENTION_DAYS = _int("SOURCE_RETENTION_DAYS", 14)       # the uploaded or downloaded original video
 PROJECT_RETENTION_DAYS = _int("PROJECT_RETENTION_DAYS", 90)     # clips, transcript, thumbnails

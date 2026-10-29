@@ -21,6 +21,7 @@
       <button role="tab" aria-selected="false" data-tab="upload" id="tabUpload">Upload file</button>
     </div>
 
+    <p class="note" id="policyNote" hidden style="margin-bottom:14px">Links are limited to YouTube videos from a channel you have connected. <a href="/accounts">Connect a channel</a>, or use <b>Upload file</b> for anything else.</p>
     <form id="linkForm" class="linkbar" autocomplete="off">
       <svg class="lead" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>
       <label class="sr" for="urlInput">Video link</label>
@@ -120,6 +121,7 @@
     $("#linkForm").hidden = up; $("#uploadPane").hidden = !up;
   });
   $("#dropIcon").innerHTML = ICON.upload;
+  fetch("/api/config").then((r) => r.json()).then((c) => { $("#policyNote").hidden = c.link_policy !== "owned"; }).catch(() => {});
 
   // ---------- start from a link ----------
   $("#linkForm").onsubmit = async (e) => {

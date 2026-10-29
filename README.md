@@ -100,6 +100,23 @@ docker compose exec verticlip-saas python -m app.admin delete-user user@example.
 docker compose exec backup python -m app.backup verify /backups/<file>.bak    # prove a backup is readable
 ```
 
+Customer quotes only appear on the website after the customer consents in Settings and you approve them:
+
+```bash
+docker compose exec verticlip-saas python -m app.admin testimonials           # quotes waiting for review
+docker compose exec verticlip-saas python -m app.admin approve <id>           # publish   (or: reject <id>)
+```
+
+The public status page at `/status` runs real checks (database, workers, ffmpeg, transcription, scoring, email, disk) and keeps a
+30-day history. To post a notice on it:
+
+```bash
+docker compose exec verticlip-saas python -m app.admin incident open degraded "Slow processing" "Queues are longer than usual."
+docker compose exec verticlip-saas python -m app.admin incident resolve <id>
+```
+
+It is served by the app, so also point an outside uptime monitor at `/healthz`.
+
 Takedowns remove the project, add a strike to its owner (three strikes suspend the account) and email them.
 
 ## Before you launch

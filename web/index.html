@@ -113,6 +113,12 @@
   .agree a { color: var(--ink); text-decoration: underline; }
   #capBox { margin-top: 1rem; }
 
+  .quotes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: clamp(20px, 3vw, 40px); margin-top: clamp(24px, 4vw, 48px); }
+  .quotes blockquote { margin: 0; padding-top: 1.1rem; border-top: 1px solid var(--ink); }
+  .quotes p { font-size: var(--step-1); line-height: 1.35; letter-spacing: -.01em; }
+  .quotes footer { all: unset; display: block; margin-top: .9rem; font-size: var(--step--1); color: var(--slate); }
+  .quotes footer b { color: var(--ink); font-weight: 600; }
+
   /* hero */
   .hero { padding: clamp(32px, 5vw, 72px) 0 clamp(48px, 7vw, 96px); }
   h1 { font-size: var(--step-4); line-height: .94; letter-spacing: -.045em; font-weight: 700; max-width: 16ch; }
@@ -283,6 +289,12 @@
     </div>
   </section>
 
+  <section class="block" id="quotes" hidden>
+    <div class="wrap">
+      <h2>What customers say</h2>
+      <div class="quotes" id="quoteList"></div>
+    </div>
+  </section>
   </div>
 
   <div class="panel" id="p-how" role="tabpanel" aria-labelledby="t-how" hidden>
@@ -362,7 +374,7 @@
   </div>
 </main>
 
-<footer><div class="wrap"><span>© 2026 Verticlip. Only clip videos you own or have permission to use.</span><span><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/copyright">Copyright</a><a href="/refunds">Refunds</a><a href="/support">Support</a></span></div></footer>
+<footer><div class="wrap"><span>© 2026 Verticlip. Only clip videos you own or have permission to use.</span><span><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/copyright">Copyright</a><a href="/refunds">Refunds</a><a href="/support">Support</a><a href="/status">Status</a></span></div></footer>
 
 <script>
 (() => {
@@ -482,6 +494,14 @@
   });
   $("#signOut").addEventListener("click", async () => { try { await call("/api/auth/logout", { method: "POST" }); } catch {} paint(null); closePop(); });
   fetch("/api/me", { credentials: "same-origin" }).then((r) => r.ok ? r.json() : null).then((d) => paint(d && d.user)).catch(() => {});
+
+  // ----- customer quotes: shown only when real, approved ones exist
+  fetch("/api/testimonials").then((r) => r.json()).then(({ testimonials }) => {
+    if (!testimonials.length) return;
+    const esc = (t) => String(t).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    $("#quoteList").innerHTML = testimonials.map((t) => `<blockquote><p>\u201c${esc(t.quote)}\u201d</p><footer><b>${esc(t.name)}</b>${t.role ? ", " + esc(t.role) : ""}</footer></blockquote>`).join("");
+    $("#quotes").hidden = false;
+  }).catch(() => {});
 
   // ----- pricing comes from the server so it always matches billing
   fetch("/api/plans").then((r) => r.json()).then(({ plans }) => {

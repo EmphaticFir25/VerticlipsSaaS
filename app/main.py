@@ -25,7 +25,7 @@ from starlette.responses import FileResponse, JSONResponse, RedirectResponse, Re
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from . import ai, auth, billing, config, db, janitor, mailer, media, pipeline, social, worker
+from . import ai, auth, billing, config, db, janitor, mailer, media, pipeline, social, status, worker
 
 PARALLEL = {"free": 1, "pro": 3, "studio": 5}
 FILE_NAME = re.compile(r"^(clip_\d{2}\.(mp4|jpg)|thumb\.jpg)$")
@@ -67,6 +67,18 @@ def require_user(request: Request) -> dict:
 def require_verified(user: dict) -> None:
     if config.REQUIRE_EMAIL_VERIFICATION and not user.get("email_verified"):
         raise err(403, "Confirm your email first. Use the link we sent, or ask for a new one from your dashboard.")
+
+
+def enforce_link_policy(user: dict, info: dict) -> None:
+    """In "owned" mode a pasted link must be a YouTube video from a channel this customer connected."""
+    if config.LINK_POLICY != "owned":
+        return
+    if info.get("extractor", "").lower() != "youtube" or not info.get("channel_id"):
+        raise err(403, "Links are limited to YouTube videos from a channel you have connected. Upload the video file instead.")
+    owned = {a["external_id"] for a in db.list_accounts(user["id"]) if a["platform"] == "youtube"}
+    if info["channel_id"] not in owned:
+        raise err(403, "This video is from a channel that isn't connected to your account. Connect that YouTube channel in "
+                       "Social accounts, or upload the video file instead.")
 
 
 def require_rights(value) -> None:
@@ -218,7 +230,7 @@ async def landing(request: Request):
                 raw={"JSONLD": _jsonld()})
 
 
-PUBLIC_PATHS = [*LANDING, "/terms", "/privacy", "/copyright", "/refunds", "/support"]
+PUBLIC_PATHS = [*LANDING, "/terms", "/privacy", "/copyright", "/refunds", "/support", "/status"]
 
 
 async def robots_txt(request: Request):
@@ -270,7 +282,7 @@ async def legal_page(request: Request):
 
 async def public_config(request: Request):
     return JSONResponse({"turnstile_site_key": config.TURNSTILE_SITE_KEY if config.TURNSTILE_SECRET else "",
-                         "min_age": config.MIN_AGE})
+                         "min_age": config.MIN_AGE, "link_policy": config.LINK_POLICY})
 
 
 async def security_txt(request: Request):
@@ -345,6 +357,46 @@ async def verify_email(request: Request):
         raise err(400, "This link has expired or was already used. Log in and ask for a new one.")
     db.update_user(user_id, email_verified=1)
     return JSONResponse({"ok": True})
+
+
+async def my_testimonial(request: Request):
+    user = require_user(request)
+    t = db.get_testimonial(user["id"])
+    return JSONResponse({"testimonial": t and {k: t[k] for k in ("name", "role", "quote", "status")},
+                         "eligible": db.done_project_count(user["id"]) > 0})
+
+
+async def save_testimonial(request: Request):
+    user = require_user(request)
+    data = await body_json(request)
+    if db.done_project_count(user["id"]) == 0:
+        raise err(403, "You can share your experience after your first set of clips is ready.")
+    name, role = str(data.get("name", "")).strip()[:60], str(data.get("role", "")).strip()[:60]
+    quote = " ".join(str(data.get("quote", "")).split())
+    if not name:
+        raise err(400, "Add the name you want shown next to your quote.")
+    if not 20 <= len(quote) <= 400:
+        raise err(400, "Keep your quote between 20 and 400 characters.")
+    if data.get("consent") is not True:
+        raise err(400, "Tick the box to confirm we may publish your quote with your name.")
+    db.save_testimonial(user["id"], name, role, quote)
+    return JSONResponse({"ok": True, "status": "pending"})
+
+
+async def remove_testimonial(request: Request):
+    user = require_user(request)
+    db.delete_testimonial(user["id"])
+    return JSONResponse({"ok": True})
+
+
+async def public_testimonials(request: Request):
+    return JSONResponse({"testimonials": [{k: t[k] for k in ("name", "role", "quote")}
+                                          for t in db.list_testimonials("approved", 6)]})
+
+
+async def status_json(request: Request):
+    snap = await run_in_threadpool(status.snapshot)
+    return JSONResponse(snap, headers={"Cache-Control": "public, max-age=10"})
 
 
 report_throttle = auth.Throttle(limit=5, window=3600)
@@ -600,6 +652,7 @@ async def create_project(request: Request):
         info = await run_in_threadpool(media.remote_info, url)
     except media.MediaError as exc:
         raise err(400, str(exc))
+    enforce_link_policy(user, info)
     if info["is_live"]:
         raise err(400, "Live streams can be clipped once they have ended.")
     if info["duration"]:
@@ -997,6 +1050,12 @@ routes = [
     Route("/api/publish", publish, methods=["POST"]),
     Route("/api/plans", plans),
     Route("/api/config", public_config),
+    Route("/api/status", status_json),
+    Route("/status", plain_page),
+    Route("/api/testimonials", public_testimonials),
+    Route("/api/testimonial", my_testimonial, methods=["GET"]),
+    Route("/api/testimonial", save_testimonial, methods=["POST"]),
+    Route("/api/testimonial", remove_testimonial, methods=["DELETE"]),
     Route("/api/billing/checkout", checkout, methods=["POST"]),
     Route("/api/billing/portal", portal, methods=["POST"]),
     Route("/api/billing/webhook", stripe_webhook, methods=["POST"]),
@@ -1017,10 +1076,13 @@ async def lifespan(app):
     if config.SECURE_COOKIES and not mailer.configured():
         raise RuntimeError("Set SMTP_HOST (and the other SMTP_* settings) before running on an https PUBLIC_BASE. "
                            "Customers need email to confirm their address and reset a password.")
+    if config.LINK_POLICY == "owned" and not social.available()["youtube"]:
+        print("[warn] LINK_POLICY=owned needs Google sign-in (GOOGLE_CLIENT_ID/SECRET). Until it is set, no link can be pasted.")
     if not config.SECRET_KEY:
         print("[warn] SECRET_KEY is not set. Social account connections are disabled until it is.")
     worker.start(pipeline.run_project)
     janitor.start()
+    status.start()
     yield
 
 

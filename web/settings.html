@@ -53,6 +53,18 @@
       <h2 style="font-size:18px;margin-bottom:6px">Notifications</h2>
       <label class="check" style="display:flex;gap:10px;align-items:flex-start;margin-top:12px;color:var(--muted)"><input type="checkbox" id="notify" style="margin-top:3px" /><span>Email me when a project finishes processing.</span></label>
     </div>
+    <form class="card pad" id="tm">
+      <h2 style="font-size:18px;margin-bottom:6px">Share your experience</h2>
+      <p class="muted" style="font-size:14px" id="tmHint">Liked Verticlip? A short quote helps others decide. We only publish it after you agree below and we approve it.</p>
+      <div id="tmBody" hidden>
+        <div class="field" style="margin-top:14px"><label for="tmQuote">Your quote</label><textarea class="input" id="tmQuote" rows="3" maxlength="400" style="height:auto;padding:12px 14px"></textarea></div>
+        <div class="field"><label for="tmName">Name to show</label><input class="input" id="tmName" maxlength="60" /></div>
+        <div class="field"><label for="tmRole">What you do (optional)</label><input class="input" id="tmRole" maxlength="60" placeholder="e.g. podcast host" /></div>
+        <label class="check" style="display:flex;gap:10px;align-items:flex-start;margin-top:14px;font-size:13.5px;color:var(--muted)"><input type="checkbox" id="tmOk" style="margin-top:3px" /><span>I agree Verticlip may publish this quote with the name above on its website. I can remove it any time here.</span></label>
+        <p class="muted" id="tmStatus" style="font-size:13px;margin-top:10px"></p>
+        <div style="display:flex;gap:10px;margin-top:14px"><button class="btn">Submit quote</button><button type="button" class="btn ghost" id="tmDel" hidden>Remove my quote</button></div>
+      </div>
+    </form>
     <div class="card pad">
       <h2 style="font-size:18px;margin-bottom:6px">Your data</h2>
       <p class="muted" style="font-size:14px">Download a copy of everything stored about your account: profile, projects, clips and transcripts. We delete projects automatically after {{PROJECT_DAYS}} days and original videos after {{SOURCE_DAYS}} days.</p>
@@ -85,6 +97,23 @@
   $("#tfOn").onsubmit = async (e) => {
     e.preventDefault();
     try { await api("/api/me/2fa/disable", { method: "POST", body: { password: $("#tfPw").value, code: $("#tfOffCode").value } }); e.target.reset(); tfShow("tfOff"); toast("Two-step login is off"); }
+    catch (err) { toast(err.message, true); }
+  };
+  const tmLoad = () => api("/api/testimonial").then(({ testimonial: t, eligible }) => {
+    $("#tmBody").hidden = !eligible;
+    if (!eligible) $("#tmHint").textContent = "You can share your experience once your first set of clips is ready.";
+    if (t) { $("#tmQuote").value = t.quote; $("#tmName").value = t.name; $("#tmRole").value = t.role; $("#tmOk").checked = true;
+      $("#tmStatus").textContent = { pending: "Waiting for approval. It isn't public yet.", approved: "Published on the website.", rejected: "We didn't publish this one." }[t.status] || ""; }
+    $("#tmDel").hidden = !t;
+  }).catch(() => {});
+  tmLoad();
+  $("#tm").onsubmit = async (e) => {
+    e.preventDefault();
+    try { await api("/api/testimonial", { method: "POST", body: { quote: $("#tmQuote").value, name: $("#tmName").value, role: $("#tmRole").value, consent: $("#tmOk").checked } }); toast("Thanks. We'll review it."); tmLoad(); }
+    catch (err) { toast(err.message, true); }
+  };
+  $("#tmDel").onclick = async () => {
+    try { await api("/api/testimonial", { method: "DELETE" }); $("#tm").reset(); $("#tmStatus").textContent = ""; toast("Removed"); tmLoad(); }
     catch (err) { toast(err.message, true); }
   };
   $("#notify").onchange = async (e) => {
