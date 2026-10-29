@@ -88,6 +88,7 @@ def client_ip(request: Request) -> str:
 def public_user(user: dict) -> dict:
     return {"id": user["id"], "email": user["email"], "name": user["name"], "plan": user["plan"],
             "has_subscription": bool(user.get("stripe_subscription")), "created": user["created"],
+            "two_factor": bool(user.get("totp_enabled")),
             "email_verified": bool(user.get("email_verified")), "notify_email": bool(user.get("notify_email", 1)),
             "verification_required": config.REQUIRE_EMAIL_VERIFICATION and not user.get("email_verified")}
 
@@ -425,9 +426,17 @@ async def login(request: Request):
     if not user or not ok:
         auth.login_throttle.fail(key)
         raise err(401, "Wrong email or password.")
-    auth.login_throttle.clear(key)
+    if not user.get("totp_enabled"):
+        auth.login_throttle.clear(key)
     if user.get("suspended"):
         raise err(403, "This account is suspended. Contact support if you think this is a mistake.")
+    if user.get("totp_enabled"):
+        code = str(data.get("code", "")).strip()
+        if not code:
+            return JSONResponse({"detail": "Enter the 6-digit code from your authenticator app.", "two_factor": True}, status_code=401)
+        if not await run_in_threadpool(auth.second_factor_ok, user, code):
+            auth.login_throttle.fail(key)
+            return JSONResponse({"detail": "That code isn't right. Try the newest one, or use a recovery code.", "two_factor": True}, status_code=401)
     resp = JSONResponse({"user": public_user(user)})
     set_session(resp, auth.new_session(user["id"]))
     return resp
@@ -470,6 +479,45 @@ async def delete_me(request: Request):
     resp = JSONResponse({"ok": True})
     resp.delete_cookie(auth.SESSION_COOKIE, path="/")
     return resp
+
+
+async def twofa_setup(request: Request):
+    import segno
+    user = require_user(request)
+    if user.get("totp_enabled"):
+        raise err(409, "Two-step login is already on.")
+    secret = auth.new_totp_secret()
+    db.update_user(user["id"], totp_secret=secret, totp_enabled=0, totp_last=0)
+    from urllib.parse import quote as q
+    uri = f"otpauth://totp/Verticlip:{q(user['email'])}?secret={secret}&issuer=Verticlip&algorithm=SHA1&digits=6&period=30"
+    svg = segno.make(uri, error="m").svg_inline(scale=5, border=2, dark="#000", light="#fff")
+    return JSONResponse({"secret": secret, "uri": uri, "qr_svg": svg})
+
+
+async def twofa_enable(request: Request):
+    user = require_user(request)
+    data = await body_json(request)
+    if user.get("totp_enabled") or not user.get("totp_secret"):
+        raise err(409, "Start set-up first.")
+    step = auth.check_totp(user["totp_secret"], str(data.get("code", "")))
+    if not step:
+        raise err(400, "That code isn't right. Check that your phone's clock is correct and try the newest code.")
+    codes = auth.new_recovery_codes()
+    db.update_user(user["id"], totp_enabled=1, totp_last=step, recovery_codes=json.dumps([auth._hash_code(c) for c in codes]))
+    return JSONResponse({"recovery_codes": codes})
+
+
+async def twofa_disable(request: Request):
+    user = require_user(request)
+    data = await body_json(request)
+    if not user.get("totp_enabled"):
+        return JSONResponse({"ok": True})
+    if not await run_in_threadpool(auth.verify_password, str(data.get("password", "")), user["pw_hash"]):
+        raise err(403, "That password is not right.")
+    if not await run_in_threadpool(auth.second_factor_ok, user, str(data.get("code", ""))):
+        raise err(400, "That code isn't right.")
+    db.update_user(user["id"], totp_enabled=0, totp_secret=None, recovery_codes="[]", totp_last=0)
+    return JSONResponse({"ok": True})
 
 
 export_throttle = auth.Throttle(limit=5, window=3600)
@@ -924,6 +972,9 @@ routes = [
     Route("/api/me", delete_me, methods=["DELETE"]),
     Route("/api/me/export", export_me, methods=["GET"]),
     Route("/api/me/password", change_password, methods=["POST"]),
+    Route("/api/me/2fa/setup", twofa_setup, methods=["POST"]),
+    Route("/api/me/2fa/enable", twofa_enable, methods=["POST"]),
+    Route("/api/me/2fa/disable", twofa_disable, methods=["POST"]),
     Route("/api/report", submit_report, methods=["POST"]),
     Route("/api/projects", list_projects, methods=["GET"]),
     Route("/api/projects", create_project, methods=["POST"]),
@@ -971,6 +1022,24 @@ async def lifespan(app):
     worker.start(pipeline.run_project)
     janitor.start()
     yield
+
+
+def _scrub(event, hint):
+    """Keep the error and stack trace, drop everything that could identify a customer."""
+    event.pop("user", None)
+    req = event.get("request") or {}
+    for key in ("cookies", "headers", "data", "query_string", "env"):
+        req.pop(key, None)
+    event.pop("breadcrumbs", None)
+    return event
+
+
+if config.SENTRY_DSN:
+    try:
+        import sentry_sdk
+        sentry_sdk.init(dsn=config.SENTRY_DSN, send_default_pii=False, traces_sample_rate=0, before_send=_scrub)
+    except ImportError:
+        print("[warn] SENTRY_DSN is set but sentry-sdk is not installed.")
 
 
 app = Starlette(

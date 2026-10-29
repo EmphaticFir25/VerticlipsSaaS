@@ -39,6 +39,14 @@ def send(to: str, subject: str, body: str) -> None:
         server.send_message(msg)
 
 
+def finished_email(title: str, link: str, ok: bool, message: str = "") -> tuple[str, str]:
+    if ok:
+        return ("Your clips are ready", f"Your clips for \"{title}\" are ready to review:\n{link}\n\n"
+                f"You can turn these emails off in Settings.")
+    return ("We couldn't finish your project", f"We couldn't finish \"{title}\".\n{message}\n\nDetails and a retry button are here:\n{link}\n\n"
+            "Your minutes were returned. You can turn these emails off in Settings.")
+
+
 def verification_email(link: str) -> tuple[str, str]:
     return ("Confirm your email for Verticlip",
             f"Welcome to Verticlip.\n\nConfirm your email to start creating clips:\n{link}\n\n"

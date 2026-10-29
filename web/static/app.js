@@ -41,7 +41,10 @@
       location.href = `/login?next=${encodeURIComponent(location.pathname + location.search)}`;
       throw new Error("Please log in.");
     }
-    if (!res.ok) { const e = new Error(await errorText(res)); e.status = res.status; throw e; }
+    if (!res.ok) {
+      let data = {}; try { data = await res.clone().json(); } catch { }
+      const e = new Error(await errorText(res)); e.status = res.status; e.data = data; throw e;
+    }
     return res.json();
   }
 

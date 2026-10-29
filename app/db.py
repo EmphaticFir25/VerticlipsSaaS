@@ -126,6 +126,7 @@ USER_COLUMNS = {
     "totp_secret": "TEXT",
     "totp_enabled": "INTEGER NOT NULL DEFAULT 0",
     "recovery_codes": "TEXT NOT NULL DEFAULT '[]'",
+    "totp_last": "INTEGER NOT NULL DEFAULT 0",
 }
 
 PROJECT_FIELDS = ("title", "source_url", "source_kind", "status", "stage", "progress", "message",
@@ -195,7 +196,7 @@ def _user(r) -> Optional[dict]:
 def update_user(user_id: str, **fields) -> None:
     allowed = {"name", "pw_hash", "plan", "stripe_customer", "stripe_subscription",
                "minutes_used", "period_start", "brand", "email_verified", "consented_at", "suspended",
-               "strikes", "notify_email", "totp_secret", "totp_enabled", "recovery_codes"}
+               "strikes", "notify_email", "totp_secret", "totp_enabled", "recovery_codes", "totp_last"}
     sets = {k: (json.dumps(v) if k == "brand" else v) for k, v in fields.items() if k in allowed}
     if not sets:
         return
@@ -253,7 +254,7 @@ def export_user(user_id: str) -> dict:
     """Everything we hold about a customer, without secrets (password hash, OAuth tokens, 2FA secret)."""
     with conn() as c:
         u = _row(c.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()) or {}
-        for secret in ("pw_hash", "totp_secret", "recovery_codes"):
+        for secret in ("pw_hash", "totp_secret", "recovery_codes", "totp_last"):
             u.pop(secret, None)
         projects = [dict(r) for r in c.execute("SELECT * FROM projects WHERE user_id = ? ORDER BY created", (user_id,))]
         clips = [dict(r) for r in c.execute("SELECT * FROM clips WHERE user_id = ? ORDER BY project_id, idx", (user_id,))]

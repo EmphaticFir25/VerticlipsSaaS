@@ -27,6 +27,28 @@
       <p class="muted" style="font-size:13px;margin-top:8px">Changing it signs you out everywhere else.</p>
       <button class="btn" style="margin-top:18px">Change password</button>
     </form>
+    <div class="card pad" id="tf">
+      <h2 style="font-size:18px;margin-bottom:6px">Two-step login</h2>
+      <p class="muted" style="font-size:14px">Ask for a code from an authenticator app (1Password, Google Authenticator, Authy) when you log in, so a stolen password isn't enough.</p>
+      <div id="tfOff" hidden><button class="btn ghost" id="tfStart" style="margin-top:16px">Turn on</button></div>
+      <div id="tfSetup" hidden style="margin-top:16px">
+        <p style="font-size:14px">1. Scan this with your authenticator app, or enter the key by hand.</p>
+        <div id="tfQr" style="width:180px;margin:12px 0;border-radius:12px;overflow:hidden;background:#fff"></div>
+        <p class="muted" style="font-size:13px;word-break:break-all">Key: <code id="tfKey"></code></p>
+        <form id="tfEnable"><div class="field" style="margin-top:14px"><label for="tfCode">2. Enter the 6-digit code it shows</label><input class="input" id="tfCode" inputmode="numeric" autocomplete="one-time-code" required /></div><button class="btn" style="margin-top:14px">Confirm and turn on</button></form>
+      </div>
+      <div id="tfCodes" hidden style="margin-top:16px">
+        <p style="font-size:14px"><b>Save these recovery codes.</b> Each works once if you lose your phone. They won't be shown again.</p>
+        <pre id="tfCodeList" style="margin:12px 0;padding:14px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);font-size:14px;line-height:1.7"></pre>
+        <button class="btn ghost" id="tfDone">I saved them</button>
+      </div>
+      <form id="tfOn" hidden style="margin-top:16px">
+        <p class="pill ok" style="display:inline-block;margin-bottom:10px">On</p>
+        <div class="field"><label for="tfPw">Password</label><input class="input" id="tfPw" type="password" autocomplete="current-password" required /></div>
+        <div class="field"><label for="tfOffCode">Current code or a recovery code</label><input class="input" id="tfOffCode" inputmode="numeric" autocomplete="one-time-code" required /></div>
+        <button class="btn ghost" style="margin-top:14px">Turn off</button>
+      </form>
+    </div>
     <div class="card pad">
       <h2 style="font-size:18px;margin-bottom:6px">Notifications</h2>
       <label class="check" style="display:flex;gap:10px;align-items:flex-start;margin-top:12px;color:var(--muted)"><input type="checkbox" id="notify" style="margin-top:3px" /><span>Email me when a project finishes processing.</span></label>
@@ -40,7 +62,7 @@
       <h2 style="font-size:18px;margin-bottom:6px">Delete account</h2>
       <p class="muted" style="font-size:14px">Permanently deletes your account, projects, clips, brand kit and connected accounts, and cancels any subscription. This can't be undone.</p>
       <div class="field" style="margin-top:14px"><label for="delpw">Confirm with your password</label><input class="input" id="delpw" type="password" autocomplete="current-password" required /></div>
-      <button class="btn" style="margin-top:16px;background:var(--red);color:var(--bg)">Delete my account</button>
+      <button class="btn danger" style="margin-top:16px">Delete my account</button>
     </form>
   </div>
 </main>
@@ -48,6 +70,23 @@
 <script>
   const { $, api, toast } = VC;
   VC.loadMe().then((me) => { $("#name").value = me.user.name; $("#email").value = me.user.email; $("#notify").checked = me.user.notify_email; });
+  const tfShow = (id) => ["tfOff", "tfSetup", "tfCodes", "tfOn"].forEach((x) => $("#" + x).hidden = x !== id);
+  VC.loadMe().then((me) => tfShow(me.user.two_factor ? "tfOn" : "tfOff"));
+  $("#tfStart").onclick = async () => {
+    try { const d = await api("/api/me/2fa/setup", { method: "POST" }); $("#tfQr").innerHTML = d.qr_svg; $("#tfKey").textContent = d.secret; tfShow("tfSetup"); $("#tfCode").focus(); }
+    catch (err) { toast(err.message, true); }
+  };
+  $("#tfEnable").onsubmit = async (e) => {
+    e.preventDefault();
+    try { const d = await api("/api/me/2fa/enable", { method: "POST", body: { code: $("#tfCode").value } }); $("#tfCodeList").textContent = d.recovery_codes.join("\n"); tfShow("tfCodes"); }
+    catch (err) { toast(err.message, true); }
+  };
+  $("#tfDone").onclick = () => { $("#tfCodeList").textContent = ""; tfShow("tfOn"); toast("Two-step login is on"); };
+  $("#tfOn").onsubmit = async (e) => {
+    e.preventDefault();
+    try { await api("/api/me/2fa/disable", { method: "POST", body: { password: $("#tfPw").value, code: $("#tfOffCode").value } }); e.target.reset(); tfShow("tfOff"); toast("Two-step login is off"); }
+    catch (err) { toast(err.message, true); }
+  };
   $("#notify").onchange = async (e) => {
     try { await api("/api/me", { method: "PATCH", body: { notify_email: e.target.checked } }); toast("Saved"); }
     catch (err) { toast(err.message, true); e.target.checked = !e.target.checked; }

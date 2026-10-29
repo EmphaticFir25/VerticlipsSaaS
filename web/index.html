@@ -72,7 +72,7 @@
   .signed-in [data-signin] { display: none; }
   .dash-btn { display: none; }
   .signed-in .dash-btn { display: inline-flex; }
-  .err { min-height: 1.2em; margin-top: .8rem; color: #d92d20; font-size: var(--step--1); font-weight: 500; }
+  .err { min-height: 1.2em; margin-top: .8rem; color: #b42318; font-size: var(--step--1); font-weight: 500; }
   :root[data-theme="dark"] .err { color: #ff8a80; }
   @media (prefers-color-scheme: dark) { :root:not([data-theme]) .err { color: #ff8a80; } }
   .btn[disabled] { opacity: .6; cursor: wait; }
@@ -247,6 +247,7 @@
   <form id="authForm" novalidate>
     <label class="field">Email<input type="email" name="email" autocomplete="email" required placeholder="you@example.com" /></label>
     <label class="field">Password<input type="password" name="password" id="pw" autocomplete="current-password" required placeholder="Your password" /></label>
+    <label class="field" id="codeRow" hidden>Authentication code<input name="code" id="code" inputmode="numeric" autocomplete="one-time-code" placeholder="6-digit code or recovery code" /></label>
     <label class="agree" id="agreeRow" hidden><input type="checkbox" id="agree" /><span>I am {{MIN_AGE}} or older and I accept the <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a>.</span></label>
     <div id="capBox" hidden></div>
     <button class="btn" id="authSubmit">Sign in</button>
@@ -422,7 +423,7 @@
     let res;
     try { res = await fetch(path, { method, headers, body: payload, credentials: "same-origin" }); }
     catch { throw new Error("Can't reach Verticlip. Check your connection."); }
-    if (!res.ok) { let m = "Something went wrong."; try { const d = await res.json(); if (typeof d.detail === "string") m = d.detail; } catch {} const e = new Error(m); e.status = res.status; throw e; }
+    if (!res.ok) { let m = "Something went wrong.", d = {}; try { d = await res.json(); if (typeof d.detail === "string") m = d.detail; } catch {} const e = new Error(m); e.status = res.status; e.data = d; throw e; }
     return res.json();
   }
   const dlg = $("#auth"), form = $("#authForm"), errEl = $("#authErr"), submit = $("#authSubmit");
@@ -435,7 +436,7 @@
     $("#pw").placeholder = up ? "At least 8 characters" : "Your password";
     $("#swap").innerHTML = up ? `Already have an account? <button type="button" data-swap="signin">Sign in</button>` : `New to Verticlip? <button type="button" data-swap="signup">Create an account</button>`;
     errEl.textContent = "";
-    $("#agreeRow").hidden = !up; $("#capBox").hidden = !up;
+    $("#agreeRow").hidden = !up; $("#capBox").hidden = !up; $("#codeRow").hidden = true;
     if (up && !capLoaded) { capLoaded = true; loadCaptcha(); }
   }
   let capLoaded = false, cap = { token: () => "", reset() { } };
@@ -471,10 +472,13 @@
     if (mode === "signup" && !$("#agree").checked) { errEl.textContent = "Please confirm your age and accept the Terms and Privacy Policy."; return; }
     submit.disabled = true;
     try {
-      const body = mode === "signup" ? { email, password, agree: true, captcha: cap.token() } : { email, password };
+      const body = mode === "signup" ? { email, password, agree: true, captcha: cap.token() } : { email, password, code: $("#code").value.trim() };
       await call(mode === "signup" ? "/api/auth/signup" : "/api/auth/login", { method: "POST", body });
       location.href = dest;
-    } catch (err) { errEl.textContent = err.message; submit.disabled = false; cap.reset(); }
+    } catch (err) {
+      errEl.textContent = err.message; submit.disabled = false; cap.reset();
+      if (err.data && err.data.two_factor) { $("#codeRow").hidden = false; $("#code").focus(); }
+    }
   });
   $("#signOut").addEventListener("click", async () => { try { await call("/api/auth/logout", { method: "POST" }); } catch {} paint(null); closePop(); });
   fetch("/api/me", { credentials: "same-origin" }).then((r) => r.ok ? r.json() : null).then((d) => paint(d && d.user)).catch(() => {});

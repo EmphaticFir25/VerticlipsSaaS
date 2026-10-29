@@ -20,12 +20,14 @@ with it at runtime.
 
 | Area | Details |
 |---|---|
-| Accounts | Email + password (scrypt), HTTP-only session cookies, login throttling, per-user data isolation |
+| Accounts | Email + password (scrypt), HTTP-only session cookies, email confirmation, password reset, optional authenticator-app two-step login with recovery codes, breached-password check, login throttling, per-user data isolation |
 | Plans | Free / Pro / Studio with monthly minute allowances, clip caps, parallel-job limits; minutes refunded on failure or cancel |
 | Billing | Stripe Checkout, Customer Portal, signed and de-duplicated webhooks |
 | Publishing | Per-customer Google and TikTok OAuth, tokens encrypted at rest (Fernet, keyed by `SECRET_KEY`), TikTok token refresh, chunked TikTok uploads, resumable YouTube uploads |
 | Jobs | Persistent queue in SQLite, worker threads, restart-safe (in-flight projects re-run), cancel and retry |
-| Safety | Anti-forgery header on every write, private-network links refused, upload size and type checks, security headers |
+| Safety | Anti-forgery header on every write, write rate limits, bot check (Turnstile), disposable-email block, private-network links refused, upload size and type checks, Content-Security-Policy and other security headers |
+| Privacy and compliance | Self-serve data export and account deletion, automatic data retention, age and terms consent, copyright/abuse reports with a three-strike takedown tool, self-hosted fonts, Terms/Privacy/Copyright/Refund/Support pages filled from your settings |
+| Operations | Encrypted nightly backups with verify and restore, optional Sentry, `/healthz`, `security.txt`, `robots.txt` and `sitemap.xml` |
 | UI | Landing page with pricing, dashboard, project page with ranked clips and score breakdowns, brand kit with live preview, social accounts, billing, settings |
 
 ```
@@ -87,6 +89,24 @@ pytest
 
 The tests run a real server against fake Whisper and Claude endpoints, render real clips with ffmpeg, and check
 login, plan limits, per-customer isolation, Stripe signatures and the brand kit.
+
+## Operator tools
+
+```bash
+docker compose exec verticlip-saas python -m app.admin reports               # open copyright and abuse reports
+docker compose exec verticlip-saas python -m app.admin takedown <project_id> <report_id>
+docker compose exec verticlip-saas python -m app.admin suspend user@example.com
+docker compose exec verticlip-saas python -m app.admin delete-user user@example.com
+docker compose exec backup python -m app.backup verify /backups/<file>.bak    # prove a backup is readable
+```
+
+Takedowns remove the project, add a strike to its owner (three strikes suspend the account) and email them.
+
+## Before you launch
+
+Work through [docs/LAUNCH_CHECKLIST.md](docs/LAUNCH_CHECKLIST.md): legal review, DMCA agent registration, tax, platform
+verification, email DNS records, a tested backup restore, and spend limits. See also
+[docs/EMAIL_DELIVERABILITY.md](docs/EMAIL_DELIVERABILITY.md) and [docs/INCIDENT_RESPONSE.md](docs/INCIDENT_RESPONSE.md).
 
 ## Keeping it private and secure
 

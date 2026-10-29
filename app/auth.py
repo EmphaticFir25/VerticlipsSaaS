@@ -89,6 +89,61 @@ def consume_email_token(token: str, kind: str) -> Optional[str]:
     return db.consume_email_token(_token_hash(str(token or "")), kind)
 
 
+# ---------- two-step login (TOTP, RFC 6238) ----------
+
+import struct
+
+
+def new_totp_secret() -> str:
+    return base64.b32encode(secrets.token_bytes(20)).decode().rstrip("=")
+
+
+def _totp(secret: str, counter: int) -> str:
+    key = base64.b32decode(secret + "=" * (-len(secret) % 8))
+    digest = hmac.new(key, struct.pack(">Q", counter), hashlib.sha1).digest()
+    offset = digest[-1] & 15
+    return f"{(struct.unpack('>I', digest[offset:offset + 4])[0] & 0x7FFFFFFF) % 10 ** 6:06d}"
+
+
+def check_totp(secret: str, code: str, last_used: int = 0, now: Optional[float] = None) -> Optional[int]:
+    """The matching time step (within one step either side), or None. A step already used is refused."""
+    code = "".join(ch for ch in str(code) if ch.isdigit())
+    if len(code) != 6 or not secret:
+        return None
+    step = int((now or time.time()) // 30)
+    for s in (step - 1, step, step + 1):
+        if s > last_used and hmac.compare_digest(_totp(secret, s), code):
+            return s
+    return None
+
+
+def new_recovery_codes(n: int = 8) -> list[str]:
+    return [f"{secrets.token_hex(3)}-{secrets.token_hex(3)}" for _ in range(n)]
+
+
+def _hash_code(code: str) -> str:
+    return hashlib.sha256(code.strip().lower().encode()).hexdigest()
+
+
+def use_recovery_code(user: dict, code: str) -> bool:
+    """Single use: a matching code is removed from the stored list."""
+    stored = json.loads(user.get("recovery_codes") or "[]")
+    h = _hash_code(code)
+    if h not in stored:
+        return False
+    stored.remove(h)
+    db.update_user(user["id"], recovery_codes=json.dumps(stored))
+    return True
+
+
+def second_factor_ok(user: dict, code: str) -> bool:
+    step = check_totp(user.get("totp_secret") or "", code, user.get("totp_last") or 0)
+    if step:
+        db.update_user(user["id"], totp_last=step)
+        return True
+    return use_recovery_code(user, code)
+
+
 # ---------- sign-up hygiene ----------
 
 DISPOSABLE_DOMAINS = {

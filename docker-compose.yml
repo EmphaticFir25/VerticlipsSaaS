@@ -13,6 +13,22 @@ services:
     expose:
       - "33214"
 
+  backup:
+    image: verticlip-saas:latest
+    container_name: verticlip-backup
+    restart: unless-stopped
+    depends_on:
+      - verticlip-saas
+    env_file:
+      - path: .env
+        required: true
+    environment:
+      BACKUP_DIR: /backups
+    command: ["python", "-m", "app.backup", "loop"]
+    volumes:
+      - ./data:/app/data
+      - ./backups:/backups
+
   caddy:
     image: caddy:2
     container_name: verticlip-caddy

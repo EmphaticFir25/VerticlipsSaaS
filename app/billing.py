@@ -101,8 +101,13 @@ def checkout_url(user: dict, plan: str) -> str:
         "subscription_data[metadata][user_id]": user["id"],
         "allow_promotion_codes": "true",
     }
+    if config.STRIPE_TAX:
+        data.update({"automatic_tax[enabled]": "true", "billing_address_collection": "required",
+                     "tax_id_collection[enabled]": "true"})
     if user.get("stripe_customer"):
         data["customer"] = user["stripe_customer"]
+        if config.STRIPE_TAX:   # Stripe only accepts these when it is updating an existing customer
+            data.update({"customer_update[address]": "auto", "customer_update[name]": "auto"})
     else:
         data["customer_email"] = user["email"]
     return _stripe("checkout/sessions", data)["url"]

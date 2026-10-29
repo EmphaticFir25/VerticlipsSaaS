@@ -76,6 +76,8 @@ def test_upload_to_clips_and_isolation(server, sample_video):
     assert project["settings"]["max_clips"] == 6  # capped by the free plan
     data = wait_done(s, server, project["id"])
     assert data["project"]["status"] == "done", data["project"]["message"]
+    from test_email_auth import outbox
+    assert any(m["to"] == "owner@example.com" and m["subject"] == "Your clips are ready" for m in outbox())
     clips = data["clips"]
     assert len(clips) == 2
     assert clips[0]["score"] == 91 and clips[0]["hashtags"] == ["#startups", "#founder"]

@@ -102,6 +102,7 @@ if YOUTUBE_PRIVACY not in ("private", "unlisted", "public"):
 
 # ---------- billing ----------
 STRIPE_SECRET_KEY = _env("STRIPE_SECRET_KEY")
+STRIPE_TAX = _env("STRIPE_TAX", "false").lower() == "true"
 STRIPE_WEBHOOK_SECRET = _env("STRIPE_WEBHOOK_SECRET")
 STRIPE_PRICE_PRO = _env("STRIPE_PRICE_PRO")
 STRIPE_PRICE_STUDIO = _env("STRIPE_PRICE_STUDIO")
